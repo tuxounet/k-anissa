@@ -1,0 +1,17 @@
+# MCP Gitlab — Serveur MCP pour les opérations Gitlab
+services:
+  mcp-gitlab:
+    image: node:20-slim
+    container_name: kanissa-mcp-gitlab
+    restart: unless-stopped
+    working_dir: /app
+    command: ["npx", "-y", "@modelcontextprotocol/server-gitlab"]
+    environment:
+      - GITLAB_PERSONAL_ACCESS_TOKEN=${GITLAB_TOKEN:-}
+      - GITLAB_API_URL=${GITLAB_API_URL:-https://gitlab.com/api/v4}
+    networks:
+      - kanissa
+
+networks:
+  kanissa:
+    external: true

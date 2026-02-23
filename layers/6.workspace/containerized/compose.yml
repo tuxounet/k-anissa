@@ -1,0 +1,16 @@
+# Workspace conteneurisé — Environnement de travail isolé
+services:
+  workspace:
+    image: ubuntu:24.04
+    container_name: kanissa-workspace
+    restart: unless-stopped
+    command: ["sleep", "infinity"]
+    volumes:
+      - "${KANISSA_DATA:-.data}/workspace:/workspace"
+    working_dir: /workspace
+    networks:
+      - kanissa
+
+networks:
+  kanissa:
+    external: true

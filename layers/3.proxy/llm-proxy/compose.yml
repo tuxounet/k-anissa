@@ -1,0 +1,20 @@
+# LiteLLM Proxy — Routeur multi-modèle OpenAI-compatible
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: kanissa-litellm
+    restart: unless-stopped
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    volumes:
+      - ./config.yml:/app/config.yaml:ro
+    command: ["--config", "/app/config.yaml"]
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-kanissa-dev}
+    depends_on: []
+    networks:
+      - kanissa
+
+networks:
+  kanissa:
+    external: true

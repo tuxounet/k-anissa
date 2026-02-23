@@ -1,0 +1,18 @@
+# Ollama embarqué — Serveur d'inférence LLM local
+services:
+  ollama:
+    build:
+      context: .
+    container_name: kanissa-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:8080"
+    volumes:
+      - "${KANISSA_DATA:-.data}/ollama:/root/.ollama"
+   
+    networks:
+      - kanissa
+
+networks:
+  kanissa:
+    external: true

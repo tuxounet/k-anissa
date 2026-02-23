@@ -1,0 +1,9 @@
+# Données locales
+.data/
+
+# Environnements spécifiques
+*.local.env
+
+# OS
+.DS_Store
+Thumbs.db

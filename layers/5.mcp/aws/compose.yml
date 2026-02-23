@@ -1,0 +1,18 @@
+# MCP AWS — Serveur MCP pour les opérations AWS
+services:
+  mcp-aws:
+    image: node:20-slim
+    container_name: kanissa-mcp-aws
+    restart: unless-stopped
+    working_dir: /app
+    command: ["npx", "-y", "@modelcontextprotocol/server-aws"]
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-eu-west-1}
+    networks:
+      - kanissa
+
+networks:
+  kanissa:
+    external: true

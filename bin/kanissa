@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+#=============================================================================
+# K-anIssA — CLI principal
+# Usage: kanissa <commande> [options]
+#=============================================================================
+set -euo pipefail
+
+#--- Résolution des chemins ------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export KANISSA_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export KANISSA_LIB="$KANISSA_ROOT/lib"
+export KANISSA_LAYERS="$KANISSA_ROOT/layers"
+export KANISSA_STARTERS="$KANISSA_ROOT/starters"
+export KANISSA_DATA="$KANISSA_ROOT/.data"
+
+#--- Chargement des librairies --------------------------------------------
+source "$KANISSA_LIB/colors.sh"
+source "$KANISSA_LIB/logging.sh"
+source "$KANISSA_LIB/docker.sh"
+source "$KANISSA_LIB/layers.sh"
+source "$KANISSA_LIB/config.sh"
+
+#--- Fonctions principales ------------------------------------------------
+cmd_up() {
+  local profile="${1:-}"
+  [[ -z "$profile" ]] && log_error "Usage: kanissa up <profile>" && exit 1
+
+  config_load "$profile"
+  log_info "Démarrage du profil ${CYAN}${profile}${RESET}"
+
+  docker_ensure_network
+
+  local components=()
+  config_get_components components
+
+  for component in "${components[@]}"; do
+    layer_start "$component"
+  done
+
+  log_success "Profil ${CYAN}${profile}${RESET} démarré"
+
+  # Afficher les liens d'accès
+  local has_links=false
+  local all_links=""
+  for component in "${components[@]}"; do
+    local links
+    links=$(layer_get_links "$component" 2>/dev/null || true)
+    if [[ -n "$links" ]]; then
+      all_links+="$links"
+      all_links+=$'\n'
+    fi
+  done
+
+  if [[ -n "${all_links// /}" ]]; then
+    printf "\n"
+    printf "  ${BOLD}Accès aux services :${RESET}\n"
+    printf "  %-30s %s\n" "────────────────────────────" "──────────────────────────────"
+    while IFS='|' read -r label url; do
+      [[ -z "$label" ]] && continue
+      printf "  ${CYAN}%-30s${RESET} %s\n" "$label" "$url"
+    done <<< "$all_links"
+    printf "\n"
+  fi
+}
+
+cmd_down() {
+  local profile="${1:-}"
+  [[ -z "$profile" ]] && log_error "Usage: kanissa down <profile>" && exit 1
+
+  config_load "$profile"
+  log_info "Arrêt du profil ${CYAN}${profile}${RESET}"
+
+  local components=()
+  config_get_components components
+  
+  # Arrêt en ordre inverse
+  local reversed=()
+  for (( i=${#components[@]}-1; i>=0; i-- )); do
+    reversed+=("${components[$i]}")
+  done
+
+  for component in "${reversed[@]}"; do
+    layer_stop "$component"
+  done
+
+  log_success "Profil ${CYAN}${profile}${RESET} arrêté"
+}
+
+cmd_status() {
+  local profile="${1:-}"
+  [[ -z "$profile" ]] && log_error "Usage: kanissa status <profile>" && exit 1
+
+  config_load "$profile"
+  log_info "Statut du profil ${CYAN}${profile}${RESET}"
+
+  local components=()
+  config_get_components components
+
+  printf "\n"
+  printf "  %-40s %-15s\n" "COMPOSANT" "STATUT"
+  printf "  %-40s %-15s\n" "────────────────────────────────────────" "───────────────"
+
+  for component in "${components[@]}"; do
+    layer_status "$component"
+  done
+  printf "\n"
+}
+
+cmd_logs() {
+  local profile="${1:-}"
+  [[ -z "$profile" ]] && log_error "Usage: kanissa logs <profile> [composant]" && exit 1
+  local component="${2:-}"
+
+  config_load "$profile"
+
+  if [[ -n "$component" ]]; then
+    layer_logs "$component"
+  else
+    # Logs de tous les composants
+    local components=()
+    config_get_components components
+    for comp in "${components[@]}"; do
+      layer_logs "$comp"
+    done
+  fi
+}
+
+cmd_restart() {
+  local profile="${1:-}"
+  [[ -z "$profile" ]] && log_error "Usage: kanissa restart <profile>" && exit 1
+
+  cmd_down "$profile"
+  cmd_up "$profile"
+}
+
+cmd_list_profiles() {
+  log_info "Profils disponibles :"
+  for dir in "$KANISSA_STARTERS"/*/; do
+    [[ -f "$dir/profile.env" ]] || continue
+    local name
+    name="$(basename "$dir")"
+    printf "  ${CYAN}%-25s${RESET}" "$name"
+    # Lire la description si présente
+    if grep -q "^KANISSA_DESCRIPTION=" "$dir/profile.env" 2>/dev/null; then
+      printf " — %s" "$(grep '^KANISSA_DESCRIPTION=' "$dir/profile.env" | cut -d= -f2- | tr -d '"')"
+    fi
+    printf "\n"
+  done
+}
+
+cmd_list_layers() {
+  log_info "Couches disponibles :"
+  for layer_dir in "$KANISSA_LAYERS"/*/; do
+    local layer_name
+    layer_name="$(basename "$layer_dir")"
+    printf "\n  ${YELLOW}[%s]${RESET}\n" "$layer_name"
+    for comp_dir in "$layer_dir"*/; do
+      [[ -f "$comp_dir/compose.yml" ]] || continue
+      local comp_name
+      comp_name="$(basename "$comp_dir")"
+      printf "    ${CYAN}%s${RESET}/%s\n" "$layer_name" "$comp_name"
+    done
+  done
+  printf "\n"
+}
+
+cmd_help() {
+  cat <<EOF
+
+${BOLD}K-anIssA${RESET} — Host your AI bot, layer by layer
+
+${YELLOW}Usage:${RESET}
+  kanissa <commande> [arguments]
+
+${YELLOW}Commandes:${RESET}
+  ${CYAN}up${RESET}       <profile>              Démarrer un profil
+  ${CYAN}down${RESET}     <profile>              Arrêter un profil
+  ${CYAN}restart${RESET}  <profile>              Redémarrer un profil
+  ${CYAN}status${RESET}   <profile>              Voir le statut des composants
+  ${CYAN}logs${RESET}     <profile> [composant]  Voir les logs
+  ${CYAN}profiles${RESET}                        Lister les profils disponibles
+  ${CYAN}layers${RESET}                          Lister les couches disponibles
+  ${CYAN}help${RESET}                            Afficher cette aide
+
+${YELLOW}Exemples:${RESET}
+  kanissa up local-ubuntu
+  kanissa status local-ubuntu
+  kanissa logs local-ubuntu ollama-embedded
+  kanissa down local-ubuntu
+
+EOF
+}
+
+#--- Dispatch --------------------------------------------------------------
+case "${1:-help}" in
+  up)        shift; cmd_up "$@" ;;
+  down)      shift; cmd_down "$@" ;;
+  restart)   shift; cmd_restart "$@" ;;
+  status)    shift; cmd_status "$@" ;;
+  logs)      shift; cmd_logs "$@" ;;
+  profiles)  cmd_list_profiles ;;
+  layers)    cmd_list_layers ;;
+  help|--help|-h) cmd_help ;;
+  *)
+    log_error "Commande inconnue : $1"
+    cmd_help
+    exit 1
+    ;;
+esac

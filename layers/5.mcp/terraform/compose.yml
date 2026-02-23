@@ -1,0 +1,16 @@
+# MCP Terraform — Serveur MCP pour les opérations Terraform
+services:
+  mcp-terraform:
+    image: node:20-slim
+    container_name: kanissa-mcp-terraform
+    restart: unless-stopped
+    working_dir: /app
+    command: ["npx", "-y", "@modelcontextprotocol/server-terraform"]
+    environment:
+      - TF_TOKEN=${TERRAFORM_TOKEN:-}
+    networks:
+      - kanissa
+
+networks:
+  kanissa:
+    external: true
