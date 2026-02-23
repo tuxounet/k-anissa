@@ -12,7 +12,10 @@ model_list:
     litellm_params:
       model: "ollama/mistral"
       api_base: "http://kanissa-ollama:11434"
-
+  # - model_name: "claude-sonnet-4-20250514"
+  #   litellm_params:
+  #     model: "claude-sonnet-4-20250514"
+  #     api_key: "os.environ/ANTHROPIC_DIRECT_KEY"
   # --- Cloud : décommenter et configurer selon les abonnements ---
   # - model_name: "cloud/gpt-4"
   #   litellm_params:
