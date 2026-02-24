@@ -1,0 +1,21 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.workspace.custom-workspace-in-container
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.docker-compose
+    vars:
+      name: workspace 
+      title: Workspace
+      description: Workspace conteneurisé — Claude Code AI Agent avec MCP, Tools et LLM Proxy 
+      composeFile: |
+          services:
+            workspace:
+              build: 
+                context: .
+             
+              restart: unless-stopped
+          

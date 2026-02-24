@@ -1,0 +1,1 @@
+docker exec -it workspace-workspace-1 bash

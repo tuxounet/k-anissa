@@ -1,0 +1,13 @@
+k2:
+  metadata:
+    id: k.anissa.recettes.shell-script
+    kind: "template"
+  body:
+    name: "shell-script"
+    parameters:
+      name: "sample"
+      title: "Sample Component"
+      description: "Name of the new app"
+    scripts:
+      pre: []
+      nuke: []

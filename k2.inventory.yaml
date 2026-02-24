@@ -1,0 +1,14 @@
+k2:
+  metadata:
+    id: k.apps.anissa
+    kind: inventory
+  body:
+    folders:
+      ignore: []
+      templates:
+        - "recettes/**/k2.template.yaml"
+      applies:
+        - "layers/**/k2.apply.yaml"
+    vars:
+      name: k-anissa
+      title: anIssA

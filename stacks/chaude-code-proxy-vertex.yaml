@@ -1,0 +1,6 @@
+version: v0
+
+stack:
+  layers:
+    - layer: layers/6.workspace
+      plan: containerized

@@ -1,0 +1,23 @@
+k2:
+  metadata:
+    id: k.anissa.recettes.docker-compose
+    kind: "template"
+  body:
+    name: "docker-compose"
+    parameters:
+      name: "sample"
+      title: "Sample Component"
+      description: "Name of the new app"
+      composeFile: |
+          services:
+            workspace:
+              build:
+                context: .
+              container_name: sample
+              restart: unless-stopped
+             
+
+
+    scripts:
+      pre: []
+      nuke: []
