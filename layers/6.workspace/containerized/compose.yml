@@ -16,10 +16,6 @@ services:
       # ── API & Proxy LLM ──────────────────────────────────────────────────
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-}
-      # ── Google Vertex AI ─────────────────────────────────────────────────
-      - CLAUDE_CODE_USE_VERTEX=${CLAUDE_CODE_USE_VERTEX:-0}
-      - CLOUD_ML_REGION=${CLOUD_ML_REGION:-}
-      - ANTHROPIC_VERTEX_PROJECT_ID=${ANTHROPIC_VERTEX_PROJECT_ID:-}
       # ── MCP Gitlab ───────────────────────────────────────────────────────
       - GITLAB_PERSONAL_ACCESS_TOKEN=${GITLAB_TOKEN:-}
       - GITLAB_API_URL=${GITLAB_API_URL:-https://gitlab.com/api/v4}
