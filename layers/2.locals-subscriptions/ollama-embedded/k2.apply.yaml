@@ -8,7 +8,7 @@ k2:
       params:
         id: k.anissa.recettes.docker-compose
     vars:
-      name: ollama-embedded 
+      name: ollama 
       title: ollama
       description: Workspace conteneurisé — Claude Code AI Agent avec MCP, Tools et LLM Proxy 
       composeFile: |
