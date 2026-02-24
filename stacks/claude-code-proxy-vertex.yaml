@@ -1,0 +1,8 @@
+version: v0
+
+stack:
+  layers:
+    - layer: layers/3.proxy
+      plan: llm-proxy
+    - layer: layers/6.workspace
+      plan: custom-workspace-in-container
