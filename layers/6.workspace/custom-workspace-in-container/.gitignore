@@ -1,4 +1,5 @@
 !k2.apply.yaml
 compose.yml
 verbs/down.sh
+verbs/shell.sh
 verbs/up.sh
