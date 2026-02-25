@@ -10,7 +10,7 @@ k2:
     vars:
       name: kanissa-workspace 
       title: Workspace
-      description: Workspace conteneurisé — Claude Code AI Agent avec MCP, Tools et LLM Proxy 
+      description: Workspace conteneurisé - LLM Command with tools and mcp
       composeFile: |
           services:
             kanissa-workspace:
@@ -19,10 +19,7 @@ k2:
               container_name: kanissa-workspace
               restart: unless-stopped
               environment:
-                - ANTHROPIC_BASE_URL=http://kanissa-litellm:4000
-                - ANTHROPIC_API_KEY=${LITELLM_MASTER_KEY:-sk-kanissa-dev}
-                - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-20250514}
-                - DISABLE_PROMPT_CACHING=true
+                - LLM_DEFAULT_MODEL=${LLM_DEFAULT_MODEL:-claude-sonnet}
               networks:
                 - anissa
           networks:

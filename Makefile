@@ -55,4 +55,8 @@ unrender:
 
 
 claude:
-	@./anissa/bin/anissa $(_DEBUG_FLAG) run $(STACK) custom-workspace-in-container  claude 
+	@./anissa/bin/anissa $(_DEBUG_FLAG) run $(STACK) claude-code-in-container  claude 
+
+
+llm:
+	@./anissa/bin/anissa $(_DEBUG_FLAG) run $(STACK) llm-command-in-container  llm

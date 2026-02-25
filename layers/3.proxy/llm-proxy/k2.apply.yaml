@@ -24,7 +24,6 @@ k2:
                 - ./config.yml:/app/config.yaml:ro
               command: ["--config", "/app/config.yaml"]
               environment:
-                - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-kanissa-dev}
                 # ── Google Vertex AI ─────────────────────────────────────────────────
                 - CLOUD_ML_REGION=${CLOUD_ML_REGION:-}
                 - ANTHROPIC_VERTEX_PROJECT_ID=${ANTHROPIC_VERTEX_PROJECT_ID:-}

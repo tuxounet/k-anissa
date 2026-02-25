@@ -20,4 +20,4 @@ stack:
         LITELLM_MASTER_KEY: "sk-anissa-local"
 
     - layer: layers/6.workspace
-      plan: claude-code-in-container
+      plan: llm-command-in-container
