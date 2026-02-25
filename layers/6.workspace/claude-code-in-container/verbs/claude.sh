@@ -1,0 +1,1 @@
+docker exec -it kanissa-workspace claude
