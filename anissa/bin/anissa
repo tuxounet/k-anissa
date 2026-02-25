@@ -135,7 +135,7 @@ cmd_up() {
       # Hook post_start
       layer_run_hook "$plan_dir" "post_start" || true
       progress_step_ok "$plan_name" "démarré"
-      ((success_count++))
+      ((++success_count))
     else
       local rc=$?
       if [[ $rc -eq 2 ]]; then
@@ -204,7 +204,7 @@ cmd_down() {
       # Hook post_stop
       layer_run_hook "$plan_dir" "post_stop" || true
       progress_step_ok "$plan_name" "arrêté"
-      ((success_count++))
+      ((++success_count))
     else
       local rc=$?
       if [[ $rc -eq 2 ]]; then

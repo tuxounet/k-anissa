@@ -31,9 +31,4 @@ k2:
                 - VERTEX_API_KEY=${VERTEX_API_KEY:-}
           
               depends_on: []
-              networks:
-                - kanissa
-
-          networks:
-            kanissa:
-              external: true
+               

@@ -41,7 +41,7 @@ log_detail() {
 # Log de débogage (magenta, uniquement si ANISSA_DEBUG=1)
 log_debug() {
   if [[ "${ANISSA_DEBUG:-0}" == "1" ]]; then
-    echo -e "${DIM}${CYAN}🔍${RESET} ${DIM}$*${RESET}"
+    echo -e "${DIM}${CYAN}🔍${RESET} ${DIM}$*${RESET}" >&2
   fi
 }
 
