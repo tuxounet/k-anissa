@@ -1,0 +1,18 @@
+version: v0
+
+stack:
+  description: "Stack avec proxy vers Vertex AI (Claude via GCP)"
+
+  env:
+    ANISSA_NETWORK: anissa
+    TZ: Europe/Paris
+
+  layers:
+    - layer: layers/3.proxy
+      plan: llm-proxy
+      env:
+        LITELLM_PORT: "4000"
+        LITELLM_MASTER_KEY: "sk-anissa-local"
+
+    - layer: layers/6.workspace
+      plan: custom-workspace-in-container

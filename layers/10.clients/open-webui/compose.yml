@@ -1,0 +1,21 @@
+# Open WebUI — Interface web pour LLM
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: kanissa-open-webui
+    restart: unless-stopped
+    ports:
+      - "${OPEN_WEBUI_PORT:-8080}:8080"
+    volumes:
+      - "${KANISSA_DATA:-.data}/open-webui:/app/backend/data"
+    environment:
+      - OLLAMA_BASE_URL=http://kanissa-ollama:11434
+      - OPENAI_API_BASE_URL=http://kanissa-litellm:4000/v1
+      - OPENAI_API_KEY=${LITELLM_MASTER_KEY:-sk-kanissa-dev}
+      - WEBUI_AUTH=${OPEN_WEBUI_AUTH:-false}
+    networks:
+      - kanissa
+
+networks:
+  kanissa:
+    external: true

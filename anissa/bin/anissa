@@ -1,0 +1,643 @@
+#!/usr/bin/env bash
+set -euo pipefail
+#=============================================================================
+# anissa/bin/anissa — CLI principal K-anIssA v0
+#
+# Orchestre les opérations sur les stacks : chargement de la configuration,
+# rendering k2, et exécution séquentielle des verbes sur chaque layer.
+#=============================================================================
+
+# ── Résolution des chemins ────────────────────────────────────────────────────
+ANISSA_BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export ANISSA_ROOT="$(cd "${ANISSA_BIN_DIR}/../.." && pwd)"
+export ANISSA_LIB="${ANISSA_ROOT}/anissa/lib"
+export ANISSA_LAYERS="${ANISSA_ROOT}/layers"
+export ANISSA_STACKS="${ANISSA_ROOT}/stacks"
+export ANISSA_DATA="${ANISSA_DATA:-${ANISSA_ROOT}/.data}"
+export ANISSA_NETWORK="${ANISSA_NETWORK:-anissa}"
+
+# ── Chargement des librairies ─────────────────────────────────────────────────
+source "${ANISSA_LIB}/colors.sh"
+source "${ANISSA_LIB}/logging.sh"
+source "${ANISSA_LIB}/progress.sh"
+source "${ANISSA_LIB}/docker.sh"
+source "${ANISSA_LIB}/config.sh"
+source "${ANISSA_LIB}/layers.sh"
+
+# ── Chargement du .env utilisateur ────────────────────────────────────────────
+_load_dotenv() {
+  local env_file="${ANISSA_ROOT}/.env"
+  if [[ -f "$env_file" ]]; then
+    log_debug "Chargement du fichier .env: ${env_file}"
+    set -a
+    # shellcheck source=/dev/null
+    source "$env_file"
+    set +a
+  else
+    log_debug "Fichier .env absent: ${env_file}"
+  fi
+}
+
+# ── Rendering k2 ─────────────────────────────────────────────────────────────
+_run_render() {
+  local k2_bin
+  k2_bin="$(go env GOPATH 2>/dev/null)/bin/k2"
+
+  if [[ ! -x "$k2_bin" ]]; then
+    # Essayer dans le PATH
+    k2_bin="$(command -v k2 2>/dev/null || true)"
+  fi
+
+  if [[ -z "$k2_bin" ]]; then
+    log_warn "k2 non trouvé — rendering ignoré (les fichiers existants seront utilisés)"
+    return 0
+  fi
+
+  progress_detail "Rendering des templates..."
+  log_debug "k2 binary: ${k2_bin}"
+  log_debug "Commande: ${k2_bin} apply --inventory ${ANISSA_ROOT}/k2.inventory.yaml"
+  local output
+  output=$("$k2_bin" apply --inventory "${ANISSA_ROOT}/k2.inventory.yaml" 2>&1) || {
+    log_warn "Rendering k2 échoué (les fichiers existants seront utilisés)"
+    if [[ -n "$output" ]]; then
+      log_detail "$output"
+    fi
+    return 0
+  }
+  if [[ -n "$output" ]]; then
+    log_debug "Rendering output: ${output}"
+  fi
+}
+
+# ── Commande : up ─────────────────────────────────────────────────────────────
+cmd_up() {
+  local stack_name="$1"
+
+  # 1. Charger .env
+  _load_dotenv
+
+  # 2. Parser la stack
+  config_load_stack "$stack_name"
+
+  local layer_count
+  layer_count=$(config_get_layer_count)
+
+  # 3. Bannière
+  progress_banner "up" "$stack_name" "$layer_count"
+
+  # 4. Variables env globales déjà exportées par config_load_stack
+
+  # 5. Rendering k2
+  _run_render
+
+  # 6. Vérifications Docker et réseau
+  docker_check
+  docker_ensure_network
+
+  # 7. Itérer sur chaque layer
+  local success_count=0
+  local failures=()
+  local all_links=""
+
+  for ((i = 0; i < layer_count; i++)); do
+    local layer_path plan plan_dir layer_ref plan_name
+    layer_path=$(config_get_layer_path "$i")
+    plan=$(config_get_layer_plan "$i")
+    layer_ref=$(config_get_layer_ref "$i")
+    plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+    plan_name="$plan"
+
+    progress_step_start "$((i + 1))" "$layer_count" "▶ Démarrage" "$layer_ref"
+    log_debug "Layer [$i]: path=${layer_path} plan=${plan} dir=${plan_dir}"
+
+    # Vérifier que le dossier existe
+    if [[ ! -d "$plan_dir" ]]; then
+      progress_step_skip "$plan_name" "dossier introuvable"
+      continue
+    fi
+
+    # Exporter les variables env de cette layer
+    config_export_layer_env "$i"
+
+    # Vérifier compose.yml
+    if [[ ! -f "${plan_dir}/compose.yml" ]]; then
+      progress_step_skip "$plan_name" "compose.yml manquant"
+      continue
+    fi
+
+    progress_detail "docker compose up -d"
+
+    # Hook pre_start
+    layer_run_hook "$plan_dir" "pre_start" || true
+
+    # Démarrage
+    if layer_start "$plan_dir"; then
+      # Hook post_start
+      layer_run_hook "$plan_dir" "post_start" || true
+      progress_step_ok "$plan_name" "démarré"
+      ((++success_count))
+    else
+      local rc=$?
+      if [[ $rc -eq 2 ]]; then
+        progress_step_skip "$plan_name" "compose.yml manquant"
+      else
+        progress_step_fail "$plan_name" "échec (voir logs)"
+        failures+=("${layer_ref}|échec")
+      fi
+    fi
+
+    # Collecter les liens d'accès
+    local links
+    links=$(layer_get_links "$plan_dir")
+    if [[ -n "$links" ]]; then
+      all_links+="${links}"$'\n'
+    fi
+  done
+
+  # 8-9. Résumé et liens
+  progress_summary "démarrée" "$stack_name" "$success_count" "$layer_count" "${failures[@]+"${failures[@]}"}"
+  progress_links_table "$all_links"
+}
+
+# ── Commande : down ───────────────────────────────────────────────────────────
+cmd_down() {
+  local stack_name="$1"
+
+  _load_dotenv
+  config_load_stack "$stack_name"
+
+  local layer_count
+  layer_count=$(config_get_layer_count)
+
+  progress_banner "down" "$stack_name" "$layer_count"
+
+  docker_check
+
+  # Ordre INVERSE
+  local success_count=0
+  local failures=()
+
+  for ((i = layer_count - 1; i >= 0; i--)); do
+    local layer_path plan plan_dir layer_ref plan_name
+    layer_path=$(config_get_layer_path "$i")
+    plan=$(config_get_layer_plan "$i")
+    layer_ref=$(config_get_layer_ref "$i")
+    plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+    plan_name="$plan"
+
+    local display_idx=$((layer_count - i))
+    progress_step_start "$display_idx" "$layer_count" "■ Arrêt" "$layer_ref"
+
+    if [[ ! -d "$plan_dir" ]]; then
+      progress_step_skip "$plan_name" "dossier introuvable"
+      continue
+    fi
+
+    config_export_layer_env "$i"
+
+    progress_detail "docker compose down"
+
+    # Hook pre_stop
+    layer_run_hook "$plan_dir" "pre_stop" || true
+
+    if layer_stop "$plan_dir"; then
+      # Hook post_stop
+      layer_run_hook "$plan_dir" "post_stop" || true
+      progress_step_ok "$plan_name" "arrêté"
+      ((++success_count))
+    else
+      local rc=$?
+      if [[ $rc -eq 2 ]]; then
+        progress_step_skip "$plan_name" "compose.yml manquant"
+      else
+        progress_step_fail "$plan_name" "échec"
+        failures+=("${layer_ref}|échec")
+      fi
+    fi
+  done
+
+  progress_summary "arrêtée" "$stack_name" "$success_count" "$layer_count" "${failures[@]+"${failures[@]}"}"
+}
+
+# ── Commande : restart ────────────────────────────────────────────────────────
+cmd_restart() {
+  local stack_name="$1"
+  cmd_down "$stack_name"
+  cmd_up "$stack_name"
+}
+
+# ── Commande : status ─────────────────────────────────────────────────────────
+cmd_status() {
+  local stack_name="$1"
+
+  _load_dotenv
+  config_load_stack "$stack_name"
+
+  local layer_count
+  layer_count=$(config_get_layer_count)
+
+  progress_banner "status" "$stack_name" "$layer_count"
+
+  docker_check
+
+  local status_lines=""
+
+  for ((i = 0; i < layer_count; i++)); do
+    local layer_path plan plan_dir layer_ref
+    layer_path=$(config_get_layer_path "$i")
+    plan=$(config_get_layer_plan "$i")
+    layer_ref=$(config_get_layer_ref "$i")
+    plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+
+    config_export_layer_env "$i"
+
+    local status
+    status=$(layer_status "$plan_dir")
+    status_lines+="${layer_ref}|${status}"$'\n'
+  done
+
+  echo "$status_lines" | progress_status_table
+}
+
+# ── Commande : logs ───────────────────────────────────────────────────────────
+cmd_logs() {
+  local stack_name="$1"
+  local target_layer="${2:-}"
+
+  _load_dotenv
+  config_load_stack "$stack_name"
+
+  local layer_count
+  layer_count=$(config_get_layer_count)
+
+  docker_check
+
+  if [[ -n "$target_layer" ]]; then
+    # Logs d'un seul layer — chercher par match partiel
+    for ((i = 0; i < layer_count; i++)); do
+      local layer_path plan layer_ref plan_dir
+      layer_path=$(config_get_layer_path "$i")
+      plan=$(config_get_layer_plan "$i")
+      layer_ref=$(config_get_layer_ref "$i")
+      plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+
+      if [[ "$layer_ref" == *"$target_layer"* || "$plan" == "$target_layer" ]]; then
+        config_export_layer_env "$i"
+        log_info "Logs de ${CYAN}${layer_ref}${RESET}"
+        layer_logs "$plan_dir"
+        return
+      fi
+    done
+
+    log_fatal "Layer '${target_layer}' non trouvée dans la stack '${stack_name}'"
+  else
+    # Logs de tous les layers (pids en parallèle avec trap)
+    progress_banner "logs" "$stack_name" "$layer_count"
+
+    local pids=()
+    for ((i = 0; i < layer_count; i++)); do
+      local layer_path plan plan_dir layer_ref
+      layer_path=$(config_get_layer_path "$i")
+      plan=$(config_get_layer_plan "$i")
+      layer_ref=$(config_get_layer_ref "$i")
+      plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+
+      config_export_layer_env "$i"
+
+      if [[ -f "${plan_dir}/compose.yml" ]]; then
+        docker_compose_run "$plan_dir" logs -f --tail=50 2>/dev/null &
+        pids+=($!)
+      fi
+    done
+
+    # Attendre Ctrl+C
+    trap 'kill "${pids[@]}" 2>/dev/null; exit 0' INT TERM
+    wait "${pids[@]}" 2>/dev/null || true
+  fi
+}
+
+# ── Commande : healthcheck ────────────────────────────────────────────────────
+cmd_healthcheck() {
+  local stack_name="$1"
+
+  _load_dotenv
+  config_load_stack "$stack_name"
+
+  local layer_count
+  layer_count=$(config_get_layer_count)
+
+  progress_banner "healthcheck" "$stack_name" "$layer_count"
+
+  docker_check
+
+  local status_lines=""
+
+  for ((i = 0; i < layer_count; i++)); do
+    local layer_path plan plan_dir layer_ref plan_name
+    layer_path=$(config_get_layer_path "$i")
+    plan=$(config_get_layer_plan "$i")
+    layer_ref=$(config_get_layer_ref "$i")
+    plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+    plan_name="$plan"
+
+    progress_step_start "$((i + 1))" "$layer_count" "♥ Vérification" "$layer_ref"
+
+    config_export_layer_env "$i"
+
+    local health
+    health=$(layer_healthcheck "$plan_dir")
+
+    case "$health" in
+      UP|OK)
+        progress_step_ok "$plan_name" "OK"
+        status_lines+="${layer_ref}|UP"$'\n'
+        ;;
+      DEGRADED)
+        echo -e "       ${YELLOW}⚠${RESET} ${plan_name} — ${YELLOW}DEGRADED${RESET}"
+        echo ""
+        status_lines+="${layer_ref}|DEGRADED"$'\n'
+        ;;
+      *)
+        progress_step_fail "$plan_name" "DOWN"
+        status_lines+="${layer_ref}|DOWN"$'\n'
+        ;;
+    esac
+  done
+
+  echo "$status_lines" | progress_status_table
+}
+
+# ── Commande : shell ──────────────────────────────────────────────────────────
+cmd_shell() {
+  local stack_name="$1"
+  local target_layer="${2:-}"
+
+  _load_dotenv
+  config_load_stack "$stack_name"
+
+  local layer_count
+  layer_count=$(config_get_layer_count)
+
+  docker_check
+
+  # Si un layer est spécifié, l'ouvrir directement
+  if [[ -n "$target_layer" ]]; then
+    for ((i = 0; i < layer_count; i++)); do
+      local layer_path plan layer_ref plan_dir
+      layer_path=$(config_get_layer_path "$i")
+      plan=$(config_get_layer_plan "$i")
+      layer_ref=$(config_get_layer_ref "$i")
+      plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+
+      if [[ "$layer_ref" == *"$target_layer"* || "$plan" == "$target_layer" || "$layer_path/$plan" == *"$target_layer"* ]]; then
+        config_export_layer_env "$i"
+        log_info "Shell dans ${CYAN}${layer_ref}${RESET}"
+        layer_shell "$plan_dir"
+        return
+      fi
+    done
+
+    log_fatal "Layer '${target_layer}' non trouvée dans la stack '${stack_name}'"
+  else
+    # Sans argument, proposer le premier layer disposant d'un compose.yml
+    for ((i = 0; i < layer_count; i++)); do
+      local layer_path plan plan_dir
+      layer_path=$(config_get_layer_path "$i")
+      plan=$(config_get_layer_plan "$i")
+      plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+
+      if [[ -f "${plan_dir}/compose.yml" ]]; then
+        local layer_ref
+        layer_ref=$(config_get_layer_ref "$i")
+        config_export_layer_env "$i"
+        log_info "Shell dans ${CYAN}${layer_ref}${RESET} (premier layer disponible)"
+        layer_shell "$plan_dir"
+        return
+      fi
+    done
+
+    log_fatal "Aucun layer avec compose.yml trouvé dans la stack '${stack_name}'"
+  fi
+}
+
+# ── Commande : run ────────────────────────────────────────────────────────────
+cmd_run() {
+  local stack_name="$1"
+  local target_layer="$2"
+  local verb_name="${3:-}"
+  shift 3 || true
+  local verb_args=("$@")
+
+  _load_dotenv
+  config_load_stack "$stack_name"
+
+  local layer_count
+  layer_count=$(config_get_layer_count)
+
+  docker_check
+
+  # Chercher la layer par match partiel
+  for ((i = 0; i < layer_count; i++)); do
+    local layer_path plan layer_ref plan_dir
+    layer_path=$(config_get_layer_path "$i")
+    plan=$(config_get_layer_plan "$i")
+    layer_ref=$(config_get_layer_ref "$i")
+    plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+
+    if [[ "$layer_ref" == *"$target_layer"* || "$plan" == "$target_layer" || "$layer_path/$plan" == *"$target_layer"* ]]; then
+      config_export_layer_env "$i"
+
+      # Si aucun verbe spécifié, lister les verbes disponibles
+      if [[ -z "$verb_name" ]]; then
+        log_info "Verbes disponibles pour ${CYAN}${layer_ref}${RESET} :"
+        local verbs
+        verbs=$(layer_list_verbs "$plan_dir")
+        if [[ -n "$verbs" ]]; then
+          while IFS= read -r v; do
+            echo -e "    ${CYAN}${v}${RESET}"
+          done <<< "$verbs"
+        else
+          log_warn "Aucun verbe disponible (dossier verbs/ absent ou vide)"
+        fi
+        return
+      fi
+
+      # Rendering k2 avant l'exécution du verbe
+      _run_render
+
+      log_info "Exécution du verbe ${CYAN}${verb_name}${RESET} sur ${CYAN}${layer_ref}${RESET}"
+
+      if layer_run_verb "$plan_dir" "$verb_name" "${verb_args[@]:-}"; then
+        log_success "Verbe ${verb_name} terminé avec succès"
+      else
+        log_fatal "Verbe ${verb_name} échoué sur ${layer_ref}"
+      fi
+      return
+    fi
+  done
+
+  log_fatal "Layer '${target_layer}' non trouvée dans la stack '${stack_name}'"
+}
+
+# ── Commande : layers ─────────────────────────────────────────────────────────
+cmd_layers() {
+  echo ""
+  echo -e "${BOLD}  Layers disponibles :${RESET}"
+  echo -e "  ────────────────────────────────────────"
+
+  for layer_dir in "${ANISSA_LAYERS}"/*/; do
+    local layer_name
+    layer_name=$(basename "$layer_dir")
+
+    # Lister les plans dans cette layer
+    local plans=()
+    for plan_dir in "${layer_dir}"*/; do
+      [[ -d "$plan_dir" ]] || continue
+      local plan_name
+      plan_name=$(basename "$plan_dir")
+      # Ignorer les sous-dossiers non-plan (comme les dossiers internes)
+      plans+=("$plan_name")
+    done
+
+    if [[ ${#plans[@]} -gt 0 ]]; then
+      echo -e "  ${CYAN}${layer_name}/${RESET}"
+      for p in "${plans[@]}"; do
+        local has_compose=""
+        [[ -f "${layer_dir}${p}/compose.yml" ]] && has_compose="${GREEN}●${RESET}" || has_compose="${DIM}○${RESET}"
+        echo -e "    ${has_compose} ${p}"
+      done
+    fi
+  done
+
+  echo ""
+}
+
+# ── Commande : stacks ─────────────────────────────────────────────────────────
+cmd_stacks() {
+  echo ""
+  echo -e "${BOLD}  Stacks disponibles :${RESET}"
+  echo -e "  ────────────────────────────────────────"
+
+  for stack_file in "${ANISSA_STACKS}"/*.yaml; do
+    [[ -f "$stack_file" ]] || continue
+    local stack_name
+    stack_name=$(basename "$stack_file" .yaml)
+
+    local description=""
+    if command -v yq &>/dev/null; then
+      description=$(yq '.stack.description // ""' "$stack_file" 2>/dev/null || true)
+    fi
+
+    if [[ -n "$description" && "$description" != "null" ]]; then
+      echo -e "  ${CYAN}${stack_name}${RESET}  ${DIM}— ${description}${RESET}"
+    else
+      echo -e "  ${CYAN}${stack_name}${RESET}"
+    fi
+  done
+
+  echo ""
+}
+
+# ── Commande : help ───────────────────────────────────────────────────────────
+cmd_help() {
+  echo ""
+  echo -e "${BOLD}  anIssA${RESET} — Assistant IA modulaire multi-couches"
+  echo ""
+  echo -e "  ${BOLD}Usage :${RESET}"
+  echo -e "    anissa ${CYAN}<commande>${RESET} ${DIM}[arguments]${RESET}"
+  echo ""
+  echo -e "  ${BOLD}Commandes :${RESET}"
+  echo -e "    ${CYAN}up${RESET} <stack>              Render + démarrer toutes les layers"
+  echo -e "    ${CYAN}down${RESET} <stack>            Arrêter toutes les layers (ordre inverse)"
+  echo -e "    ${CYAN}restart${RESET} <stack>         down puis up"
+  echo -e "    ${CYAN}status${RESET} <stack>          Afficher le statut de chaque layer"
+  echo -e "    ${CYAN}logs${RESET} <stack> [layer]    Afficher les logs"
+  echo -e "    ${CYAN}healthcheck${RESET} <stack>     Vérifier la santé de chaque layer"
+  echo -e "    ${CYAN}shell${RESET} <stack> [layer]   Ouvrir un shell dans un container"  echo -e "    ${CYAN}run${RESET} <stack> <layer> [verb] Exécuter un verbe sur un plan"  echo -e "    ${CYAN}layers${RESET}                  Lister les layers disponibles"
+  echo -e "    ${CYAN}stacks${RESET}                  Lister les stacks disponibles"
+  echo -e "    ${CYAN}help${RESET}                    Afficher cette aide"
+  echo ""
+  echo -e "  ${BOLD}Options :${RESET}"
+  echo -e "    ${CYAN}--debug${RESET}                   Activer le mode debug (détails d'exécution)"
+  echo ""
+  echo -e "  ${BOLD}Variables d'environnement :${RESET}"
+  echo -e "    ${CYAN}ANISSA_DEBUG=1${RESET}            Activer le mode debug via variable"
+  echo ""
+  echo -e "  ${BOLD}Exemples :${RESET}"
+  echo -e "    ${DIM}anissa up off-grid${RESET}"
+  echo -e "    ${DIM}anissa --debug up off-grid${RESET}"
+  echo -e "    ${DIM}anissa status lab${RESET}"
+  echo -e "    ${DIM}anissa logs off-grid llm-proxy${RESET}"
+  echo -e "    ${DIM}anissa shell off-grid custom-workspace-in-container${RESET}"  echo -e "    ${DIM}anissa run off-grid llm-proxy${RESET}          ${DIM}# lister les verbes${RESET}"
+  echo -e "    ${DIM}anissa run off-grid llm-proxy up${RESET}       ${DIM}# exécuter un verbe${RESET}"  echo ""
+}
+
+# ── Point d'entrée ────────────────────────────────────────────────────────────
+main() {  # Parser le flag --debug avant la commande
+  export ANISSA_DEBUG="${ANISSA_DEBUG:-0}"
+  while [[ "${1:-}" == "--debug" ]]; do
+    export ANISSA_DEBUG=1
+    shift
+  done
+
+  if [[ "$ANISSA_DEBUG" == "1" ]]; then
+    log_debug "Mode debug activé"
+    log_debug "ANISSA_ROOT=${ANISSA_ROOT}"
+    log_debug "ANISSA_DATA=${ANISSA_DATA}"
+    log_debug "ANISSA_NETWORK=${ANISSA_NETWORK}"
+    log_debug "Arguments: $*"
+  fi
+  local command="${1:-help}"
+  shift || true
+
+  case "$command" in
+    up)
+      [[ $# -lt 1 ]] && log_fatal "Usage : anissa up <stack>"
+      cmd_up "$@"
+      ;;
+    down)
+      [[ $# -lt 1 ]] && log_fatal "Usage : anissa down <stack>"
+      cmd_down "$@"
+      ;;
+    restart)
+      [[ $# -lt 1 ]] && log_fatal "Usage : anissa restart <stack>"
+      cmd_restart "$@"
+      ;;
+    status)
+      [[ $# -lt 1 ]] && log_fatal "Usage : anissa status <stack>"
+      cmd_status "$@"
+      ;;
+    logs)
+      [[ $# -lt 1 ]] && log_fatal "Usage : anissa logs <stack> [layer]"
+      cmd_logs "$@"
+      ;;
+    healthcheck)
+      [[ $# -lt 1 ]] && log_fatal "Usage : anissa healthcheck <stack>"
+      cmd_healthcheck "$@"
+      ;;
+    shell)
+      [[ $# -lt 1 ]] && log_fatal "Usage : anissa shell <stack> [layer]"
+      cmd_shell "$@"
+      ;;
+    run)
+      [[ $# -lt 2 ]] && log_fatal "Usage : anissa run <stack> <layer> [verb] [args...]"
+      cmd_run "$@"
+      ;;
+    layers)
+      cmd_layers
+      ;;
+    stacks)
+      cmd_stacks
+      ;;
+    help|--help|-h)
+      cmd_help
+      ;;
+    *)
+      log_error "Commande inconnue : ${command}"
+      cmd_help
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

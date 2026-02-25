@@ -1,0 +1,23 @@
+# Données locales
+.data/
+
+# Environnements spécifiques
+*.local.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets utilisateur
+.env
+
+# Fichiers générés par k2 dans les layers (verbs, Makefile, compose.yml)
+layers/**/verbs/
+layers/**/Makefile
+layers/**/compose.yml
+!layers/**/k2.apply.yaml
+!layers/**/Dockerfile
+!layers/**/entrypoint.sh
+!layers/**/config.yml
+!layers/**/links.env
+!layers/**/defaults.env

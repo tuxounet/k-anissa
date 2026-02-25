@@ -1,0 +1,7 @@
+!k2.apply.yaml
+Makefile
+compose.yml
+verbs/down.sh
+verbs/logs.sh
+verbs/shell.sh
+verbs/up.sh

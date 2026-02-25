@@ -1,0 +1,22 @@
+# Wetty — Terminal web SSH (clé privée)
+services:
+  wetty:
+    image: wettyoss/wetty:latest
+    container_name: kanissa-wetty
+    restart: unless-stopped
+    ports:
+      - "${WETTY_PORT:-3000}:3000"
+    command:
+      - "--ssh-host=${WETTY_SSH_HOST:-kanissa-workspace}"
+      - "--ssh-port=${WETTY_SSH_PORT:-22}"
+      - "--ssh-user=${WETTY_SSH_USER:-root}"
+      - "--ssh-auth=publickey"
+      - "--ssh-key=/etc/kanissa-ssh/id_ed25519"
+    volumes:
+      - "${KANISSA_DATA:-.data}/ssh:/etc/kanissa-ssh:ro"
+    networks:
+      - kanissa
+
+networks:
+  kanissa:
+    external: true

@@ -1,0 +1,29 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.inferences.pre-loaded
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.docker-compose
+    vars:
+      name: ollama 
+      title: ollama
+      description: Workspace conteneurisé — Claude Code AI Agent avec MCP, Tools et LLM Proxy 
+      composeFile: |
+          # Ollama avec registry (CPU) — Serveur d'inférence avec pré-chargement
+          services:
+            ollama:
+              build: 
+                context: .
+              
+              restart: unless-stopped
+              ports:
+                - "${OLLAMA_PORT:-11434}:11434"
+              volumes:
+                - "${KANISSA_DATA:-.data}/ollama:/root/.ollama"
+              environment:
+                - OLLAMA_HOST=0.0.0.0
+             
+     
