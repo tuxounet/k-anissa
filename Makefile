@@ -1,12 +1,32 @@
 GO_PATH:=$(shell go env GOPATH)
-up: 
-	@set -a; [ -f .env ] && . ./.env; set +a; \
-	./bin/kanissa up local-ubuntu
+STACK ?= off-grid
 
-down: 
-	@set -a; [ -f .env ] && . ./.env; set +a; \
-	./bin/kanissa down local-ubuntu
+up:
+	@./anissa/bin/anissa up $(STACK)
 
+down:
+	@./anissa/bin/anissa down $(STACK)
+
+restart:
+	@./anissa/bin/anissa restart $(STACK)
+
+status:
+	@./anissa/bin/anissa status $(STACK)
+
+logs:
+	@./anissa/bin/anissa logs $(STACK)
+
+healthcheck:
+	@./anissa/bin/anissa healthcheck $(STACK)
+
+shell:
+	@./anissa/bin/anissa shell $(STACK)
+
+stacks:
+	@./anissa/bin/anissa stacks
+
+layers:
+	@./anissa/bin/anissa layers
 
 setup:
 	$(MAKE) -C ./renderer setup;
