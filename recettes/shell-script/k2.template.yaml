@@ -1,0 +1,18 @@
+k2:
+  metadata:
+    id: k.anissa.recettes.shell-script
+    kind: "template"
+  body:
+    name: "shell-script"
+    parameters:
+      name: "sample"
+      title: "Sample Script"
+      description: "Execute a shell script on up and/or down"
+      upScript: |
+        echo "up: {{ .name }}"
+      downScript: |
+        echo "down: {{ .name }}"
+
+    scripts:
+      pre: []
+      nuke: []
