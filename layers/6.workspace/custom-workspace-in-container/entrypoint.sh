@@ -117,7 +117,7 @@ echo "[kanissa] Démarrage du serveur SSH..."
 /usr/sbin/sshd
 
 echo "[kanissa] Workspace conteneurisé prêt."
-echo "[kanissa] Utiliser : docker exec -it kanissa-workspace claude"
+echo "[kanissa] Utiliser : docker exec -it custom-workspace-in-container-workspace-1 claude"
 
 # Maintenir le conteneur en vie
 exec sleep infinity
