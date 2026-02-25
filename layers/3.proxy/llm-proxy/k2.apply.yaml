@@ -8,13 +8,13 @@ k2:
       params:
         id: k.anissa.recettes.docker-compose
     vars:
-      name: litellm
+      name: kanissa-litellm
       title: LLMProxy
       description:  
       composeFile: |
          # LiteLLM Proxy — Routeur multi-modèle OpenAI-compatible
           services:
-            litellm:
+            kanissa-litellm:
               image: ghcr.io/berriai/litellm:main-latest
            
               restart: unless-stopped
@@ -31,4 +31,9 @@ k2:
                 - VERTEX_API_KEY=${VERTEX_API_KEY:-}
           
               depends_on: []
-               
+              container_name: kanissa-litellm
+              networks:
+                - anissa
+          networks:
+            anissa:
+              external: true

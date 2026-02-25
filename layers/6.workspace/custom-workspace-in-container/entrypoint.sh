@@ -12,6 +12,11 @@ SETTINGS_FILE="$CLAUDE_DIR/settings.json"
 
 mkdir -p "$CLAUDE_DIR"
 
+#--- Configuration API (proxy LLM) ------------------------------------------
+echo "[kanissa] Configuration API Claude Code :"
+echo "  ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-non défini}"
+echo "  CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-20250514}"
+
 #--- Construction dynamique du settings.json --------------------------------
 # On construit les serveurs MCP uniquement si les tokens/configs sont présents
 
@@ -73,8 +78,19 @@ MCP_SERVERS="$(echo "$MCP_SERVERS" | sed 's/,$//')"
 MCP_SERVERS+="}"
 
 #--- Écriture du fichier settings.json -------------------------------------
+CLAUDE_MODEL="${CLAUDE_MODEL:-claude-sonnet-4-20250514}"
+
+# Persist the API key to a file so apiKeyHelper can read it even after we
+# unset the env var (avoids the "both token and API key set" conflict).
+_KEY_FILE="$CLAUDE_DIR/.api_key"
+printf '%s' "${ANTHROPIC_API_KEY:-}" > "$_KEY_FILE"
+chmod 600 "$_KEY_FILE"
+
 cat > "$SETTINGS_FILE" <<EOF
 {
+  "apiKeyHelper": "cat ${_KEY_FILE}",
+  "model": "${CLAUDE_MODEL}",
+  "smallModel": "${CLAUDE_MODEL}",
   "permissions": {
     "allow": [],
     "deny": []
@@ -95,6 +111,10 @@ if command -v jq &>/dev/null; then
 EOF
   fi
 fi
+
+# Unset the env var so Claude Code only sees the key via apiKeyHelper,
+# avoiding the "both a token and an API key are set" conflict.
+unset ANTHROPIC_API_KEY
 
 echo "[kanissa] Claude Code settings générés dans $SETTINGS_FILE"
 echo "[kanissa] Serveurs MCP configurés :"
@@ -117,7 +137,7 @@ echo "[kanissa] Démarrage du serveur SSH..."
 /usr/sbin/sshd
 
 echo "[kanissa] Workspace conteneurisé prêt."
-echo "[kanissa] Utiliser : docker exec -it custom-workspace-in-container-workspace-1 claude"
+echo "[kanissa] Utiliser : docker exec -it kanissa-workspace claude"
 
 # Maintenir le conteneur en vie
 exec sleep infinity

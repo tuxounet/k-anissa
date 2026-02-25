@@ -9,7 +9,10 @@ model_list:
       api_base: "http://kanissa-ollama:11434"
 
  
-  # --- Cloud : Anthropic Claude via Vertex AI (API key) ---
+  # --- Cloud : Anthropic Claude via Vertex AI (GCP API key) ---
+  # Requires VERTEX_API_KEY, ANTHROPIC_VERTEX_PROJECT_ID, and CLOUD_ML_REGION
+  # set in the root .env file. The "Failed to load vertex credentials" warning
+  # is expected when not using ADC — LiteLLM falls back to the api_key.
   - model_name: "claude-sonnet-4-20250514"
     litellm_params:
       model: "vertex_ai/claude-sonnet-4-20250514"

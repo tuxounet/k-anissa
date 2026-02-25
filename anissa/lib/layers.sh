@@ -198,3 +198,54 @@ layer_run_hook() {
     bash -c "$hook_content"
   )
 }
+
+# Liste les verbes disponibles pour un plan
+# $1 = chemin absolu du plan
+# Sortie : liste des noms de verbes (un par ligne, sans extension .sh)
+layer_list_verbs() {
+  local plan_dir="$1"
+  local verbs_dir="${plan_dir}/verbs"
+
+  if [[ ! -d "$verbs_dir" ]]; then
+    return
+  fi
+
+  for verb_file in "${verbs_dir}"/*.sh; do
+    [[ -f "$verb_file" ]] || continue
+    basename "$verb_file" .sh
+  done
+}
+
+# Exécute un verbe spécifique sur un plan
+# $1 = chemin absolu du plan
+# $2 = nom du verbe (sans .sh)
+# $@ = arguments supplémentaires passés au script du verbe
+# Retourne 0 en cas de succès, 1 en cas d'échec
+layer_run_verb() {
+  local plan_dir="$1"
+  local verb_name="$2"
+  shift 2
+  local verb_args=("$@")
+
+  local verb_script="${plan_dir}/verbs/${verb_name}.sh"
+
+  if [[ ! -f "$verb_script" ]]; then
+    log_error "Verbe '${verb_name}' introuvable dans ${plan_dir}/verbs/"
+    local available
+    available=$(layer_list_verbs "$plan_dir")
+    if [[ -n "$available" ]]; then
+      log_info "Verbes disponibles : $(echo "$available" | tr '\n' ' ')"
+    fi
+    return 1
+  fi
+
+  if [[ ! -x "$verb_script" ]]; then
+    chmod +x "$verb_script"
+  fi
+
+  log_debug "Exécution du verbe: ${verb_script} ${verb_args[*]:-}"
+  (
+    cd "$plan_dir" || exit 1
+    bash "$verb_script" "${verb_args[@]:-}"
+  )
+}

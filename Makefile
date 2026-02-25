@@ -1,6 +1,9 @@
 GO_PATH:=$(shell go env GOPATH)
 STACK ?= lab
 DEBUG ?=
+LAYER ?=
+VERB ?=
+ARGS ?=
 
 # Construire le flag --debug si DEBUG=1
 _DEBUG_FLAG := $(if $(filter 1,$(DEBUG)),--debug,)
@@ -26,6 +29,9 @@ healthcheck:
 shell:
 	@./anissa/bin/anissa $(_DEBUG_FLAG) shell $(STACK)
 
+run:
+	@./anissa/bin/anissa $(_DEBUG_FLAG) run $(STACK) $(LAYER) $(VERB) $(ARGS)
+
 stacks:
 	@./anissa/bin/anissa stacks
 
@@ -46,3 +52,7 @@ render:
 
 unrender:
 	${GO_PATH}/bin/k2 destroy --inventory ./k2.inventory.yaml
+
+
+claude:
+	@./anissa/bin/anissa $(_DEBUG_FLAG) run $(STACK) custom-workspace-in-container  claude 

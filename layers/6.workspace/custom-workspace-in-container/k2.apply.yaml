@@ -8,14 +8,24 @@ k2:
       params:
         id: k.anissa.recettes.docker-compose
     vars:
-      name: workspace 
+      name: kanissa-workspace 
       title: Workspace
       description: Workspace conteneurisé — Claude Code AI Agent avec MCP, Tools et LLM Proxy 
       composeFile: |
           services:
-            workspace:
+            kanissa-workspace:
               build: 
                 context: .
-             
+              container_name: kanissa-workspace
               restart: unless-stopped
+              environment:
+                - ANTHROPIC_BASE_URL=http://kanissa-litellm:4000
+                - ANTHROPIC_API_KEY=${LITELLM_MASTER_KEY:-sk-kanissa-dev}
+                - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-20250514}
+                - DISABLE_PROMPT_CACHING=true
+              networks:
+                - anissa
+          networks:
+            anissa:
+              external: true
           

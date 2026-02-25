@@ -1,1 +1,1 @@
-docker exec -it workspace-workspace-1 claude
+docker exec -it kanissa-workspace claude
