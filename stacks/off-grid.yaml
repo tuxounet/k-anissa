@@ -1,10 +1,24 @@
 version: v0
 
 stack:
+  description: "Stack locale complète sans accès cloud"
+
+  env:
+    ANISSA_NETWORK: anissa
+    TZ: Europe/Paris
+
   layers:
     - layer: layers/2.locals-subscriptions
-      plan: ollama-registry
+      plan: ollama-embedded
+      env:
+        OLLAMA_PORT: "11434"
+        OLLAMA_MODELS: "gemma3:270m"
+
     - layer: layers/3.proxy
       plan: llm-proxy
+      env:
+        LITELLM_PORT: "4000"
+        LITELLM_MASTER_KEY: "sk-anissa-local"
+
     - layer: layers/6.workspace
       plan: custom-workspace-in-container

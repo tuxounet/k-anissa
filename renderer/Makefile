@@ -1,9 +1,10 @@
 GO_PATH:=$(shell go env GOPATH)
-K2_LATEST_VERSION := $(shell curl --silent "https://api.github.com/repos/tuxounet/k2/tags" | jq -r '.[0].name')
+K2_LATEST_VERSION := $(shell command -v jq >/dev/null 2>&1 && curl --silent "https://api.github.com/repos/tuxounet/k2/tags" | jq -r '.[0].name' || echo "latest")
 
 
 setup:
-	@echo "Installing K2": 
+	@command -v jq >/dev/null 2>&1 || { echo "Erreur: jq est requis. Lancez 'make setup' depuis la racine du projet."; exit 1; }
+	@echo "Installing K2"
 	go install github.com/tuxounet/k2@${K2_LATEST_VERSION}
  
 render: 
