@@ -1,0 +1,73 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.cloud-subscriptions.google-adc
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.shell-script
+    vars:
+      name: google-adc
+      title: Google ADC Auth
+      description: Authenticate with Google Cloud using Application Default Credentials and write the JSON credentials file for other workloads
+      upScript: |
+        ADC_SOURCE="${HOME}/.config/gcloud/application_default_credentials.json"
+        ADC_TARGET="${KANISSA_DATA:-.data}/google-adc/application_default_credentials.json"
+
+        # ── ensure gcloud is available ──────────────────────────────────────
+        if ! command -v gcloud &>/dev/null; then
+          echo "[google-adc] ERROR: gcloud CLI is not installed."
+          echo "[google-adc] Install it from https://cloud.google.com/sdk/docs/install"
+          exit 1
+        fi
+
+        # ── scopes required for Vertex AI and Cloud Platform ───────────────
+        ADC_SCOPES="openid,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/cloud-platform"
+
+        # ── check if existing credentials are functional ──────────────────
+        NEED_LOGIN=false
+        if [[ -f "$ADC_SOURCE" ]]; then
+          echo "[google-adc] Validating existing ADC token..."
+          if gcloud auth application-default print-access-token &>/dev/null; then
+            echo "[google-adc] ADC token is valid."
+          else
+            echo "[google-adc] ADC token is expired or invalid — re-authenticating..."
+            NEED_LOGIN=true
+          fi
+        else
+          NEED_LOGIN=true
+        fi
+
+        # ── run interactive ADC login if needed ───────────────────────────
+        if [[ "$NEED_LOGIN" == "true" ]]; then
+          echo "[google-adc] Starting Google Application Default Credentials login..."
+          gcloud auth application-default login --scopes="$ADC_SCOPES"
+
+          if [[ ! -f "$ADC_SOURCE" ]]; then
+            echo "[google-adc] ERROR: ADC credentials file not found at $ADC_SOURCE"
+            echo "[google-adc] The login may have been cancelled or failed."
+            exit 1
+          fi
+        fi
+
+        # ── copy to shared data directory ───────────────────────────────────
+        mkdir -p "$(dirname "$ADC_TARGET")"
+        cp "$ADC_SOURCE" "$ADC_TARGET"
+        chmod 600 "$ADC_TARGET"
+
+        echo "[google-adc] ADC credentials copied to $ADC_TARGET"
+
+      downScript: |
+        ADC_TARGET="${KANISSA_DATA:-.data}/google-adc/application_default_credentials.json"
+
+        if [[ -f "$ADC_TARGET" ]]; then
+          rm -f "$ADC_TARGET"
+          echo "[google-adc] ADC credentials removed from $ADC_TARGET"
+        else
+          echo "[google-adc] No ADC credentials file found at $ADC_TARGET — nothing to clean up."
+        fi
+
+    scripts:
+      pre: []
+      nuke: []
