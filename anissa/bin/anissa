@@ -119,13 +119,20 @@ cmd_up() {
     # Exporter les variables env de cette layer
     config_export_layer_env "$i"
 
-    # Vérifier compose.yml
-    if [[ ! -f "${plan_dir}/compose.yml" ]]; then
-      progress_step_skip "$plan_name" "compose.yml manquant"
+    # Détecter le type de recette
+    local recipe_type
+    recipe_type=$(layer_detect_type "$plan_dir")
+
+    if [[ "$recipe_type" == "unknown" ]]; then
+      progress_step_skip "$plan_name" "aucune recette détectée"
       continue
     fi
 
-    progress_detail "docker compose up -d"
+    if [[ "$recipe_type" == "compose" ]]; then
+      progress_detail "docker compose up -d"
+    else
+      progress_detail "verbs/up.sh"
+    fi
 
     # Hook pre_start
     layer_run_hook "$plan_dir" "pre_start" || true
@@ -139,7 +146,7 @@ cmd_up() {
     else
       local rc=$?
       if [[ $rc -eq 2 ]]; then
-        progress_step_skip "$plan_name" "compose.yml manquant"
+        progress_step_skip "$plan_name" "aucune recette détectée"
       else
         progress_step_fail "$plan_name" "échec (voir logs)"
         failures+=("${layer_ref}|échec")
@@ -195,7 +202,20 @@ cmd_down() {
 
     config_export_layer_env "$i"
 
-    progress_detail "docker compose down"
+    # Détecter le type de recette
+    local recipe_type
+    recipe_type=$(layer_detect_type "$plan_dir")
+
+    if [[ "$recipe_type" == "unknown" ]]; then
+      progress_step_skip "$plan_name" "aucune recette détectée"
+      continue
+    fi
+
+    if [[ "$recipe_type" == "compose" ]]; then
+      progress_detail "docker compose down"
+    else
+      progress_detail "verbs/down.sh"
+    fi
 
     # Hook pre_stop
     layer_run_hook "$plan_dir" "pre_stop" || true
@@ -208,7 +228,7 @@ cmd_down() {
     else
       local rc=$?
       if [[ $rc -eq 2 ]]; then
-        progress_step_skip "$plan_name" "compose.yml manquant"
+        progress_step_skip "$plan_name" "aucune recette détectée"
       else
         progress_step_fail "$plan_name" "échec"
         failures+=("${layer_ref}|échec")
@@ -307,6 +327,9 @@ cmd_logs() {
       if [[ -f "${plan_dir}/compose.yml" ]]; then
         docker_compose_run "$plan_dir" logs -f --tail=50 2>/dev/null &
         pids+=($!)
+      elif [[ -f "${plan_dir}/verbs/logs.sh" ]]; then
+        ( cd "$plan_dir" && bash verbs/logs.sh ) &
+        pids+=($!)
       fi
     done
 
@@ -357,6 +380,10 @@ cmd_healthcheck() {
         echo ""
         status_lines+="${layer_ref}|DEGRADED"$'\n'
         ;;
+      SHELL)
+        progress_step_ok "$plan_name" "script"
+        status_lines+="${layer_ref}|SHELL"$'\n'
+        ;;
       *)
         progress_step_fail "$plan_name" "DOWN"
         status_lines+="${layer_ref}|DOWN"$'\n'
@@ -406,7 +433,10 @@ cmd_shell() {
       plan=$(config_get_layer_plan "$i")
       plan_dir=$(layer_resolve_path "$layer_path" "$plan")
 
-      if [[ -f "${plan_dir}/compose.yml" ]]; then
+      local recipe_type
+      recipe_type=$(layer_detect_type "$plan_dir")
+
+      if [[ "$recipe_type" != "unknown" ]]; then
         local layer_ref
         layer_ref=$(config_get_layer_ref "$i")
         config_export_layer_env "$i"
@@ -416,7 +446,7 @@ cmd_shell() {
       fi
     done
 
-    log_fatal "Aucun layer avec compose.yml trouvé dans la stack '${stack_name}'"
+    log_fatal "Aucun layer avec recette trouvé dans la stack '${stack_name}'"
   fi
 }
 
@@ -502,9 +532,15 @@ cmd_layers() {
     if [[ ${#plans[@]} -gt 0 ]]; then
       echo -e "  ${CYAN}${layer_name}/${RESET}"
       for p in "${plans[@]}"; do
-        local has_compose=""
-        [[ -f "${layer_dir}${p}/compose.yml" ]] && has_compose="${GREEN}●${RESET}" || has_compose="${DIM}○${RESET}"
-        echo -e "    ${has_compose} ${p}"
+        local indicator=""
+        if [[ -f "${layer_dir}${p}/compose.yml" ]]; then
+          indicator="${GREEN}●${RESET}"  # docker-compose
+        elif [[ -f "${layer_dir}${p}/verbs/up.sh" ]]; then
+          indicator="${CYAN}◆${RESET}"  # shell-script
+        else
+          indicator="${DIM}○${RESET}"   # inconnu
+        fi
+        echo -e "    ${indicator} ${p}"
       done
     fi
   done

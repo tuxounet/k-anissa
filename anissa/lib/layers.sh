@@ -11,6 +11,21 @@ if ! declare -f docker_compose_run &>/dev/null; then
   source "$(dirname "${BASH_SOURCE[0]}")/docker.sh"
 fi
 
+# Détecte le type de recette d'un plan
+# $1 = chemin absolu du plan
+# Sortie : "compose" | "shell" | "unknown"
+layer_detect_type() {
+  local plan_dir="$1"
+
+  if [[ -f "${plan_dir}/compose.yml" ]]; then
+    echo "compose"
+  elif [[ -f "${plan_dir}/verbs/up.sh" ]]; then
+    echo "shell"
+  else
+    echo "unknown"
+  fi
+}
+
 # Résout le chemin complet d'un plan
 # $1 = layer path relatif (ex: "layers/2.locals-subscriptions")
 # $2 = nom du plan (ex: "ollama-registry")
@@ -26,60 +41,94 @@ layer_resolve_path() {
 
 # Démarre un composant
 # $1 = chemin absolu du plan
-# Retourne 0 en cas de succès, 1 en cas d'échec
+# Retourne 0 en cas de succès, 1 en cas d'échec, 2 pour skip
 layer_start() {
   local plan_dir="$1"
+  local recipe_type
+  recipe_type=$(layer_detect_type "$plan_dir")
 
-  if [[ ! -f "${plan_dir}/compose.yml" ]]; then
-    return 2  # Signal de skip
-  fi
-
-  local output
-  log_debug "Exécution: docker compose up -d --remove-orphans dans ${plan_dir}"
-  output=$(docker_compose_run "$plan_dir" up -d --remove-orphans 2>&1) || {
-    # En cas d'erreur, afficher les détails
-    if [[ -n "$output" ]]; then
-      echo -e "       ${DIM}${RED}${output}${RESET}" >&2
-    fi
-    return 1
-  }
-
-  return 0
+  case "$recipe_type" in
+    compose)
+      local output
+      log_debug "Exécution: docker compose up -d --remove-orphans dans ${plan_dir}"
+      output=$(docker_compose_run "$plan_dir" up -d --remove-orphans 2>&1) || {
+        if [[ -n "$output" ]]; then
+          echo -e "       ${DIM}${RED}${output}${RESET}" >&2
+        fi
+        return 1
+      }
+      return 0
+      ;;
+    shell)
+      log_debug "Exécution: verbs/up.sh dans ${plan_dir}"
+      (
+        cd "$plan_dir" || exit 1
+        bash verbs/up.sh
+      ) || return 1
+      return 0
+      ;;
+    *)
+      return 2  # Signal de skip
+      ;;
+  esac
 }
 
 # Arrête un composant
 # $1 = chemin absolu du plan
 layer_stop() {
   local plan_dir="$1"
+  local recipe_type
+  recipe_type=$(layer_detect_type "$plan_dir")
 
-  if [[ ! -f "${plan_dir}/compose.yml" ]]; then
-    return 2  # Signal de skip
-  fi
-
-  local output
-  log_debug "Exécution: docker compose down dans ${plan_dir}"
-  output=$(docker_compose_run "$plan_dir" down 2>&1) || {
-    if [[ -n "$output" ]]; then
-      echo -e "       ${DIM}${RED}${output}${RESET}" >&2
-    fi
-    return 1
-  }
-
-  return 0
+  case "$recipe_type" in
+    compose)
+      local output
+      log_debug "Exécution: docker compose down dans ${plan_dir}"
+      output=$(docker_compose_run "$plan_dir" down 2>&1) || {
+        if [[ -n "$output" ]]; then
+          echo -e "       ${DIM}${RED}${output}${RESET}" >&2
+        fi
+        return 1
+      }
+      return 0
+      ;;
+    shell)
+      if [[ -f "${plan_dir}/verbs/down.sh" ]]; then
+        log_debug "Exécution: verbs/down.sh dans ${plan_dir}"
+        (
+          cd "$plan_dir" || exit 1
+          bash verbs/down.sh
+        ) || return 1
+      else
+        log_debug "Pas de verbs/down.sh dans ${plan_dir} — rien à arrêter"
+      fi
+      return 0
+      ;;
+    *)
+      return 2  # Signal de skip
+      ;;
+  esac
 }
 
 # Affiche le statut d'un composant
 # $1 = chemin absolu du plan
-# Sortie : UP, DOWN ou DEGRADED
+# Sortie : UP, DOWN, DEGRADED ou SHELL (pour les recettes shell)
 layer_status() {
   local plan_dir="$1"
+  local recipe_type
+  recipe_type=$(layer_detect_type "$plan_dir")
 
-  if [[ ! -f "${plan_dir}/compose.yml" ]]; then
-    echo "DOWN"
-    return
-  fi
-
-  docker_get_status "$plan_dir"
+  case "$recipe_type" in
+    compose)
+      docker_get_status "$plan_dir"
+      ;;
+    shell)
+      echo "SHELL"
+      ;;
+    *)
+      echo "DOWN"
+      ;;
+  esac
 }
 
 # Affiche les logs d'un composant
@@ -88,70 +137,106 @@ layer_status() {
 layer_logs() {
   local plan_dir="$1"
   shift
+  local recipe_type
+  recipe_type=$(layer_detect_type "$plan_dir")
 
-  if [[ ! -f "${plan_dir}/compose.yml" ]]; then
-    log_warn "Pas de compose.yml dans ${plan_dir}"
-    return 1
-  fi
-
-  docker_compose_run "$plan_dir" logs -f "$@"
+  case "$recipe_type" in
+    compose)
+      docker_compose_run "$plan_dir" logs -f "$@"
+      ;;
+    shell)
+      if [[ -f "${plan_dir}/verbs/logs.sh" ]]; then
+        ( cd "$plan_dir" && bash verbs/logs.sh "$@" )
+      else
+        log_warn "Pas de logs pour cette recette shell ($(basename "$plan_dir"))"
+        return 1
+      fi
+      ;;
+    *)
+      log_warn "Type de recette inconnu dans ${plan_dir}"
+      return 1
+      ;;
+  esac
 }
 
 # Exécute un healthcheck sur un composant
 # $1 = chemin absolu du plan
-# Retourne : "OK", "DEGRADED", "DOWN"
+# Retourne : "OK", "DEGRADED", "DOWN", "SHELL"
 layer_healthcheck() {
   local plan_dir="$1"
+  local recipe_type
+  recipe_type=$(layer_detect_type "$plan_dir")
 
-  if [[ ! -f "${plan_dir}/compose.yml" ]]; then
-    echo "DOWN"
-    return
-  fi
+  case "$recipe_type" in
+    compose)
+      # Vérifier que les containers tournent
+      local status
+      status=$(docker_get_status "$plan_dir")
 
-  # Vérifier que les containers tournent
-  local status
-  status=$(docker_get_status "$plan_dir")
+      if [[ "$status" == "DOWN" ]]; then
+        echo "DOWN"
+        return
+      fi
 
-  if [[ "$status" == "DOWN" ]]; then
-    echo "DOWN"
-    return
-  fi
-
-  # Exécuter le hook healthcheck si déclaré
-  local hook_result
-  if layer_run_hook "$plan_dir" "healthcheck" 2>/dev/null; then
-    echo "$status"
-  else
-    # Si le hook échoue mais les containers tournent
-    if [[ "$status" == "UP" ]]; then
-      echo "DEGRADED"
-    else
-      echo "$status"
-    fi
-  fi
+      # Exécuter le hook healthcheck si déclaré
+      if layer_run_hook "$plan_dir" "healthcheck" 2>/dev/null; then
+        echo "$status"
+      else
+        if [[ "$status" == "UP" ]]; then
+          echo "DEGRADED"
+        else
+          echo "$status"
+        fi
+      fi
+      ;;
+    shell)
+      # Pour les recettes shell, exécuter le hook healthcheck si défini
+      if layer_run_hook "$plan_dir" "healthcheck" 2>/dev/null; then
+        echo "OK"
+      else
+        echo "SHELL"
+      fi
+      ;;
+    *)
+      echo "DOWN"
+      ;;
+  esac
 }
 
 # Ouvre un shell dans un composant
 # $1 = chemin absolu du plan
 layer_shell() {
   local plan_dir="$1"
+  local recipe_type
+  recipe_type=$(layer_detect_type "$plan_dir")
 
-  if [[ ! -f "${plan_dir}/compose.yml" ]]; then
-    log_error "Pas de compose.yml dans ${plan_dir}"
-    return 1
-  fi
+  case "$recipe_type" in
+    compose)
+      # Récupérer le premier service défini dans le compose
+      local service
+      service=$(yq '.services | keys | .[0]' "${plan_dir}/compose.yml" 2>/dev/null)
 
-  # Récupérer le premier service défini dans le compose
-  local service
-  service=$(yq '.services | keys | .[0]' "${plan_dir}/compose.yml" 2>/dev/null)
+      if [[ -z "$service" || "$service" == "null" ]]; then
+        log_error "Aucun service trouvé dans ${plan_dir}/compose.yml"
+        return 1
+      fi
 
-  if [[ -z "$service" || "$service" == "null" ]]; then
-    log_error "Aucun service trouvé dans ${plan_dir}/compose.yml"
-    return 1
-  fi
-
-  docker_compose_run "$plan_dir" exec "$service" bash 2>/dev/null \
-    || docker_compose_run "$plan_dir" exec "$service" sh
+      docker_compose_run "$plan_dir" exec "$service" bash 2>/dev/null \
+        || docker_compose_run "$plan_dir" exec "$service" sh
+      ;;
+    shell)
+      if [[ -f "${plan_dir}/verbs/shell.sh" ]]; then
+        ( cd "$plan_dir" && bash verbs/shell.sh )
+      else
+        log_warn "Pas de shell disponible pour cette recette shell ($(basename "$plan_dir"))"
+        return 1
+      fi
+      ;;
+    *)
+      log_error "Type de recette inconnu dans ${plan_dir}"
+      return 1
+      ;;
+  esac
 }
 
 # Retourne les liens d'accès d'un composant

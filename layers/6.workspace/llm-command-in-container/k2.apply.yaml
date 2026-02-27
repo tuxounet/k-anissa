@@ -1,6 +1,6 @@
 k2:
   metadata:
-    id: k.apps.anissa.layers.workspace.custom-workspace-in-container
+    id: k.apps.anissa.layers.workspace.llm-command-in-container
     kind: template-apply
   body:
     template:

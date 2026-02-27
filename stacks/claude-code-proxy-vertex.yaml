@@ -8,6 +8,15 @@ stack:
     TZ: Europe/Paris
 
   layers:
+    - layer: layers/1.cloud-subscriptions
+      plan: google-adc
+
+    - layer: layers/2.locals-subscriptions
+      plan: ollama-registry
+      env:
+        OLLAMA_PORT: "11434"
+
+  
     - layer: layers/3.proxy
       plan: llm-proxy
       env:

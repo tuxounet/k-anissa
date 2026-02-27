@@ -1,5 +1,5 @@
 GO_PATH:=$(shell go env GOPATH)
-STACK ?= lab
+STACK ?= claude-code-proxy-vertex
 DEBUG ?=
 LAYER ?=
 VERB ?=
