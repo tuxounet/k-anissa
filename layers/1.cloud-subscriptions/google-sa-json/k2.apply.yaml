@@ -1,0 +1,44 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.cloud-subscriptions.google-sa-json
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.shell-script
+    vars:
+      name: google-sa-json
+      title: Google Service Account JSON Auth
+      description: Authenticate with Google Cloud using a Service Account JSON key and write the JSON credentials file for other workloads
+      upScript: |
+        GIT_ROOT=$(git rev-parse --show-toplevel)
+        SA_SOURCE="${PARENT_PATH}/secrets/sa.json"
+        SA_TARGET="${GIT_ROOT}/.data/google-sa-json/sa.json"
+
+        if [[ ! -f "$SA_SOURCE" ]]; then
+          echo "[google-sa-json] ERROR: Service Account key not found at $SA_SOURCE"
+          echo "[google-sa-json] Place your sa.json file in the secrets/ directory."
+          exit 1
+        fi
+
+        mkdir -p "$(dirname "$SA_TARGET")"
+        cp "$SA_SOURCE" "$SA_TARGET"
+        chmod 600 "$SA_TARGET"
+
+        echo "[google-sa-json] SA credentials copied to $SA_TARGET"
+
+      downScript: |
+        GIT_ROOT=$(git rev-parse --show-toplevel)
+        SA_TARGET="${GIT_ROOT}/.data/google-sa-json/sa.json"
+
+        if [[ -f "$SA_TARGET" ]]; then
+          rm -f "$SA_TARGET"
+          echo "[google-sa-json] SA credentials removed from $SA_TARGET"
+        else
+          echo "[google-sa-json] No SA credentials file found at $SA_TARGET — nothing to clean up."
+        fi
+
+    scripts:
+      pre: []
+      nuke: []

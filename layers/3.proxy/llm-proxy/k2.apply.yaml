@@ -22,12 +22,13 @@ k2:
                 - "${LITELLM_PORT:-4000}:4000"
               volumes:
                 - ./config.yml:/app/config.yaml:ro
+                - ../../../.data/google-sa-json/sa.json:/app/sa.json:ro
               command: ["--config", "/app/config.yaml"]
               environment:
-                # ── Google Vertex AI ─────────────────────────────────────────────────
+                # ── Google Vertex AI (Service Account JSON) ──────────────────────────
+                - GOOGLE_APPLICATION_CREDENTIALS=/app/sa.json
                 - CLOUD_ML_REGION=${CLOUD_ML_REGION:-}
                 - ANTHROPIC_VERTEX_PROJECT_ID=${ANTHROPIC_VERTEX_PROJECT_ID:-}
-                - VERTEX_API_KEY=${VERTEX_API_KEY:-}
           
               depends_on: []
               container_name: kanissa-litellm

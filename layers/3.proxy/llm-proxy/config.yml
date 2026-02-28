@@ -9,16 +9,16 @@ model_list:
       api_base: "http://kanissa-ollama:11434"
 
  
-  # --- Cloud : Anthropic Claude via Vertex AI (GCP API key) ---
-  # Requires VERTEX_API_KEY, ANTHROPIC_VERTEX_PROJECT_ID, and CLOUD_ML_REGION
-  # set in the root .env file. The "Failed to load vertex credentials" warning
-  # is expected when not using ADC — LiteLLM falls back to the api_key.
+  # --- Cloud : Anthropic Claude via Vertex AI (Service Account JSON) ---
+  # Uses GOOGLE_APPLICATION_CREDENTIALS (sa.json mounted in the container)
+  # along with ANTHROPIC_VERTEX_PROJECT_ID and CLOUD_ML_REGION.
+  # Client-facing name is claude-sonnet-4-20250514 (recognized by Claude Code),
+  # but LiteLLM routes to Opus 4.6 on the backend.
   - model_name: "claude-sonnet-4-20250514"
     litellm_params:
-      model: "vertex_ai/claude-sonnet-4-20250514"
+      model: "vertex_ai/claude-opus-4-6"
       vertex_project: "os.environ/ANTHROPIC_VERTEX_PROJECT_ID"
       vertex_location: "os.environ/CLOUD_ML_REGION"
-      api_key: "os.environ/VERTEX_API_KEY"
 
   # --- Cloud : autres (décommenter selon abonnements) ---
   # - model_name: "cloud/gpt-4"
