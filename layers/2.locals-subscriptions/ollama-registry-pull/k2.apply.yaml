@@ -1,0 +1,94 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.locals-subscriptions.ollama-registry-pull
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.shell-script
+    vars:
+      name: ollama-registry-pull
+      title: Ollama Registry Pull
+      description: Pull configured models into the local Ollama registry (skip already present)
+      models:
+        - gemma3:270m
+      upScript: |
+        OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:${OLLAMA_PORT:-11434}}"
+        MODELS="${OLLAMA_MODELS:-gemma3:270m}"
+
+        echo "[ollama-registry-pull] Ollama endpoint: $OLLAMA_HOST"
+        echo "[ollama-registry-pull] Models to pull: $MODELS"
+
+        # ── helper: check if a model is already present ─────────────────────
+        model_exists() {
+          local model="$1"
+          if command -v ollama &>/dev/null; then
+            OLLAMA_HOST="$OLLAMA_HOST" ollama list 2>/dev/null | grep -q "^${model}" && return 0
+          elif command -v curl &>/dev/null; then
+            curl -sf "$OLLAMA_HOST/api/tags" 2>/dev/null \
+              | grep -q "\"${model}\"" && return 0
+          fi
+          return 1
+        }
+
+        # ── helper: pull a single model ─────────────────────────────────────
+        pull_model() {
+          local model="$1"
+          if command -v ollama &>/dev/null; then
+            OLLAMA_HOST="$OLLAMA_HOST" ollama pull "$model"
+          elif command -v curl &>/dev/null; then
+            curl -X POST "$OLLAMA_HOST/api/pull" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\": \"$model\"}" \
+              --no-buffer
+          else
+            echo "[ollama-registry-pull] ERROR: neither ollama CLI nor curl found."
+            exit 1
+          fi
+        }
+
+        # ── iterate over configured models ──────────────────────────────────
+        for MODEL in $MODELS; do
+          if model_exists "$MODEL"; then
+            echo "[ollama-registry-pull] $MODEL already present — skipping."
+          else
+            echo "[ollama-registry-pull] Pulling $MODEL..."
+            pull_model "$MODEL"
+            echo "[ollama-registry-pull] $MODEL pulled successfully."
+          fi
+        done
+
+        echo "[ollama-registry-pull] All models processed."
+
+      downScript: |
+        OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:${OLLAMA_PORT:-11434}}"
+        MODELS="${OLLAMA_MODELS:-gemma3:270m}"
+        REMOVE_MODELS="${OLLAMA_REMOVE_ON_DOWN:-false}"
+
+        if [[ "$REMOVE_MODELS" != "true" ]]; then
+          echo "[ollama-registry-pull] OLLAMA_REMOVE_ON_DOWN is not 'true' — keeping models in registry."
+          exit 0
+        fi
+
+        echo "[ollama-registry-pull] Ollama endpoint: $OLLAMA_HOST"
+        echo "[ollama-registry-pull] Models to remove: $MODELS"
+
+        for MODEL in $MODELS; do
+          echo "[ollama-registry-pull] Removing $MODEL..."
+          if command -v ollama &>/dev/null; then
+            OLLAMA_HOST="$OLLAMA_HOST" ollama rm "$MODEL" || true
+          elif command -v curl &>/dev/null; then
+            curl -X DELETE "$OLLAMA_HOST/api/delete" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\": \"$MODEL\"}" || true
+          else
+            echo "[ollama-registry-pull] WARNING: neither ollama CLI nor curl found — skipping."
+          fi
+        done
+
+        echo "[ollama-registry-pull] Cleanup done."
+
+    scripts:
+      pre: []
+      nuke: []
