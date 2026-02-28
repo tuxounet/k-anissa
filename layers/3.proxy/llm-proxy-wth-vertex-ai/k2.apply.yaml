@@ -1,0 +1,39 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.proxy.llm-proxy-wth-vertex-ai
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.docker-compose
+    vars:
+      name: kanissa-litellm
+      title: LLMProxy
+      description:  
+      composeFile: |
+         # LiteLLM Proxy — Routeur multi-modèle OpenAI-compatible
+          services:
+            kanissa-litellm:
+              image: ghcr.io/berriai/litellm:main-latest
+           
+              restart: unless-stopped
+              ports:
+                - "${LITELLM_PORT:-4000}:4000"
+              volumes:
+                - ./config.yml:/app/config.yaml:ro
+                - ../../../.data/google-sa-json/sa.json:/app/sa.json:ro
+              command: ["--config", "/app/config.yaml"]
+              environment:
+                # ── Google Vertex AI (Service Account JSON) ──────────────────────────
+                - GOOGLE_APPLICATION_CREDENTIALS=/app/sa.json
+                - CLOUD_ML_REGION=${CLOUD_ML_REGION:-}
+                - ANTHROPIC_VERTEX_PROJECT_ID=${ANTHROPIC_VERTEX_PROJECT_ID:-}
+          
+              depends_on: []
+              container_name: kanissa-litellm
+              networks:
+                - anissa
+          networks:
+            anissa:
+              external: true

@@ -1,6 +1,6 @@
 k2:
   metadata:
-    id: k.apps.anissa.layers.proxy.llm-proxy
+    id: k.apps.anissa.layers.proxy.llm-proxy-ollama
     kind: template-apply
   body:
     template:

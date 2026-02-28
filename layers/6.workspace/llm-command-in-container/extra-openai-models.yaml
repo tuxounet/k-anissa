@@ -2,14 +2,7 @@
 # Documentation : https://llm.datasette.io/en/stable/other-models.html#openai-compatible-models
 
 # ── Local : Ollama via LiteLLM ───────────────────────────────────────────────
-- model_id: local/llama3
-  model_name: local/llama3
+- model_id: gemma3
+  model_name: local/gemma3
   api_base: "http://kanissa-litellm:4000/v1"
   api_key: "no-auth"
-
-# ── Cloud : Claude Sonnet via Vertex AI (routé par LiteLLM) ─────────────────
-- model_id: claude-sonnet
-  model_name: claude-sonnet-4-20250514
-  api_base: "http://kanissa-litellm:4000/v1"
-  api_key: "no-auth"
-  supports_tools: true

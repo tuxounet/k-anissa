@@ -19,7 +19,7 @@ k2:
               container_name: kanissa-workspace
               restart: unless-stopped
               environment:
-                - LLM_DEFAULT_MODEL=${LLM_DEFAULT_MODEL:-claude-sonnet}
+                - LLM_DEFAULT_MODEL=${LLM_DEFAULT_MODEL:-gemma3}
               networks:
                 - anissa
           networks:

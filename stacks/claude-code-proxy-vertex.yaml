@@ -11,14 +11,8 @@ stack:
     - layer: layers/1.cloud-subscriptions
       plan: google-sa-json
 
-    # - layer: layers/2.locals-subscriptions
-    #   plan: ollama-registry
-    #   env:
-    #     OLLAMA_PORT: "11434"
-
-  
     - layer: layers/3.proxy
-      plan: llm-proxy
+      plan: llm-proxy-wth-vertex-ai
       env:
         LITELLM_PORT: "4000"
         LITELLM_MASTER_KEY: "sk-anissa-local"
