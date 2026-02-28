@@ -6,3 +6,4 @@
   model_name: local/gemma3
   api_base: "http://kanissa-litellm:4000/v1"
   api_key: "no-auth"
+  supports_tools: true

@@ -20,6 +20,18 @@ k2:
               restart: unless-stopped
               environment:
                 - LLM_DEFAULT_MODEL=${LLM_DEFAULT_MODEL:-gemma3}
+                # ── MCP Servers (true/false) ──
+                - MCP_GITLAB=${MCP_GITLAB:-false}
+                - MCP_GITLAB_URL=${MCP_GITLAB_URL:-https://gitlab.com}
+                - MCP_GITLAB_TOKEN=${MCP_GITLAB_TOKEN:-}
+                - MCP_KUBERNETES=${MCP_KUBERNETES:-false}
+                - MCP_TERRAFORM=${MCP_TERRAFORM:-false}
+                - MCP_GCP=${MCP_GCP:-false}
+                - MCP_GIT=${MCP_GIT:-false}
+                - MCP_GIT_REPO=${MCP_GIT_REPO:-/workspace}
+                - MCP_GITEA=${MCP_GITEA:-false}
+                - MCP_GITEA_URL=${MCP_GITEA_URL:-http://localhost:3000}
+                - MCP_GITEA_TOKEN=${MCP_GITEA_TOKEN:-}
               networks:
                 - anissa
           networks:
