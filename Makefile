@@ -60,4 +60,7 @@ claude:
 
 
 llm:
-	@./anissa/bin/anissa $(_DEBUG_FLAG) run $(STACK) llm-command-in-container  llm
+	@./anissa/bin/anissa $(_DEBUG_FLAG) run $(STACK) llm-command-in-container  llm $(ARGS)
+
+llm-ensure:
+	docker exec kanissa-workspace llm "tell me a very short joke"
