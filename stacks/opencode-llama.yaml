@@ -8,7 +8,8 @@ stack:
     TZ: Europe/Paris
 
   layers:
-     
+    - layer: layers/6.workspace
+      plan: workspace-keypair   
     - layer: layers/6.workspace
       plan: ubuntu-workspace
       env:

@@ -23,8 +23,9 @@ RUN apt-get update && apt-get install -y \
       unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Utilisateur non-root ──────────────────────────────────────────────────────
-RUN useradd -m -s /bin/bash "${USERNAME}"
+# ── Utilisateur non-root (renomme ubuntu:1000 au lieu d'en créer un) ─────────
+RUN usermod -l "${USERNAME}" -d /home/${USERNAME} -m ubuntu \
+    && groupmod -n "${USERNAME}" ubuntu
 
 # ── Configuration SSH (clé uniquement) ───────────────────────────────────────
 RUN mkdir -p /run/sshd /home/${USERNAME}/.ssh \

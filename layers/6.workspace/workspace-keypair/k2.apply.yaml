@@ -1,0 +1,44 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.workspace.workspace-keypair
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.shell-script
+    vars:
+      name: workspace-keypair
+      title: Workspace SSH Keypair
+      description: Generate an SSH key pair (ed25519) and store it in the .data directory for use by other workloads
+      upScript: |
+        KEY_DIR="${KANISSA_DATA}/workspace-keypair"
+        KEY_PATH="${KEY_DIR}/id_ed25519"
+
+        if [[ -f "$KEY_PATH" ]]; then
+          echo "[workspace-keypair] SSH key pair already exists at $KEY_PATH — skipping generation."
+          exit 0
+        fi
+
+        mkdir -p "$KEY_DIR"
+        ssh-keygen -t ed25519 -f "$KEY_PATH" -N "" -C "workspace-keypair@kanissa"
+        chmod 600 "$KEY_PATH"
+        chmod 644 "${KEY_PATH}.pub"
+
+        echo "[workspace-keypair] SSH key pair generated:"
+        echo "  Private key: $KEY_PATH"
+        echo "  Public key:  ${KEY_PATH}.pub"
+
+      downScript: |
+        KEY_DIR="${KANISSA_DATA}/workspace-keypair"
+
+        if [[ -d "$KEY_DIR" ]]; then
+          rm -rf "$KEY_DIR"
+          echo "[workspace-keypair] SSH key pair removed from $KEY_DIR"
+        else
+          echo "[workspace-keypair] No SSH key pair found at $KEY_DIR — nothing to clean up."
+        fi
+
+    scripts:
+      pre: []
+      nuke: []
