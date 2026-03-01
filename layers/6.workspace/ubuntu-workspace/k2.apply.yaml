@@ -24,8 +24,11 @@ k2:
             environment:
               - TZ=UTC
               - USERNAME=tuxounet
+            ports:
+              - "${SSH_PORT:-2222}:2222"
             volumes:
               - ${KANISSA_DATA}/workspace:/workspace
+              - ${KANISSA_DATA}/workspace-keypair:/etc/kanissa-ssh:ro
             networks:
               - anissa
         networks:

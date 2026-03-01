@@ -1,0 +1,34 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.clients.wetty
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.docker-compose
+    vars:
+      name: kanissa-wetty
+      title: Wetty SSH Web Client
+      description: Terminal web (Wetty) connecté au workspace via SSH avec les clés workspace-keypair
+      composeFile: |
+        services:
+          kanissa-wetty:
+            image: wettyoss/wetty:latest
+            container_name: kanissa-wetty
+            restart: unless-stopped
+            ports:
+              - "${WETTY_PORT:-3000}:3000"
+            volumes:
+              - ${KANISSA_DATA}/workspace-keypair/id_ed25519:/app/ssh-key:ro
+            environment:
+              - SSHHOST=kanissa-workspace
+              - SSHPORT=2222
+              - SSHUSER=${WETTY_SSH_USER:-tuxounet}
+              - SSHAUTH=publickey
+              - SSHKEY=/app/ssh-key
+            networks:
+              - anissa
+        networks:
+          anissa:
+            external: true

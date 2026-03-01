@@ -1,0 +1,45 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.clients.ssh-workspace
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.shell-script
+    vars:
+      name: ssh-workspace
+      title: SSH Workspace Client
+      description: Se connecter au ubuntu-workspace via SSH en utilisant les clés générées par workspace-keypair
+      upScript: |
+        KEY_PATH="${KANISSA_DATA}/workspace-keypair/id_ed25519"
+
+        if [[ ! -f "$KEY_PATH" ]]; then
+          echo "[ssh-workspace] ERREUR: Clé privée SSH introuvable à $KEY_PATH"
+          echo "[ssh-workspace] Assurez-vous que la couche workspace-keypair est démarrée."
+          exit 1
+        fi
+
+        SSH_PORT="${SSH_PORT:-2222}"
+        SSH_USER="${SSH_USER:-tuxounet}"
+
+        # Vérifier que le conteneur kanissa-workspace est en cours d'exécution
+        if ! docker inspect kanissa-workspace &>/dev/null; then
+          echo "[ssh-workspace] ERREUR: Le conteneur kanissa-workspace est introuvable."
+          echo "[ssh-workspace] Assurez-vous que la couche ubuntu-workspace est démarrée."
+          exit 1
+        fi
+
+        echo "[ssh-workspace] Connexion SSH à kanissa-workspace (port $SSH_PORT, user $SSH_USER)..."
+        ssh -i "$KEY_PATH" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -p "$SSH_PORT" \
+            "$SSH_USER@localhost"
+
+      downScript: |
+        echo "[ssh-workspace] Client SSH — rien à nettoyer."
+
+    scripts:
+      pre: []
+      nuke: []

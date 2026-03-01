@@ -24,3 +24,7 @@ stack:
         # MCP_GITEA: "true"
         # MCP_GITEA_URL: "http://localhost:3000"
         # MCP_GITEA_TOKEN: ""
+    - layer: layers/10.clients
+      plan: wetty
+      env:
+        WETTY_PORT: "3000"
