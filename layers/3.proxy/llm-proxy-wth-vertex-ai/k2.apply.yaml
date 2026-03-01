@@ -22,7 +22,7 @@ k2:
                 - "${LITELLM_PORT:-4000}:4000"
               volumes:
                 - ./config.yml:/app/config.yaml:ro
-                - ../../../.data/google-sa-json/sa.json:/app/sa.json:ro
+                - ${KANISSA_DATA}/google-sa-json/sa.json:/app/sa.json:ro
               command: ["--config", "/app/config.yaml"]
               environment:
                 # ── Google Vertex AI (Service Account JSON) ──────────────────────────

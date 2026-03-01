@@ -12,9 +12,8 @@ k2:
       title: Google Service Account JSON Auth
       description: Authenticate with Google Cloud using a Service Account JSON key and write the JSON credentials file for other workloads
       upScript: |
-        GIT_ROOT=$(git rev-parse --show-toplevel)
         SA_SOURCE="${PARENT_PATH}/secrets/sa.json"
-        SA_TARGET="${GIT_ROOT}/.data/google-sa-json/sa.json"
+        SA_TARGET="${KANISSA_DATA}/google-sa-json/sa.json"
 
         if [[ ! -f "$SA_SOURCE" ]]; then
           echo "[google-sa-json] ERROR: Service Account key not found at $SA_SOURCE"
@@ -29,8 +28,7 @@ k2:
         echo "[google-sa-json] SA credentials copied to $SA_TARGET"
 
       downScript: |
-        GIT_ROOT=$(git rev-parse --show-toplevel)
-        SA_TARGET="${GIT_ROOT}/.data/google-sa-json/sa.json"
+        SA_TARGET="${KANISSA_DATA}/google-sa-json/sa.json"
 
         if [[ -f "$SA_TARGET" ]]; then
           rm -f "$SA_TARGET"

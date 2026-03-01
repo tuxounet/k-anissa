@@ -14,6 +14,7 @@ export ANISSA_LIB="${ANISSA_ROOT}/anissa/lib"
 export ANISSA_LAYERS="${ANISSA_ROOT}/layers"
 export ANISSA_STACKS="${ANISSA_ROOT}/stacks"
 export ANISSA_DATA="${ANISSA_DATA:-${ANISSA_ROOT}/.data}"
+export KANISSA_DATA="${KANISSA_DATA:-${ANISSA_DATA}}"
 export ANISSA_NETWORK="${ANISSA_NETWORK:-anissa}"
 
 # ── Chargement des librairies ─────────────────────────────────────────────────

@@ -25,7 +25,7 @@ k2:
               - TZ=UTC
               - USERNAME=tuxounet
             volumes:
-              - ./.data/workspace:/workspace
+              - ${KANISSA_DATA}/workspace:/workspace
             networks:
               - anissa
         networks:
