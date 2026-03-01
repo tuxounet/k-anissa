@@ -1,0 +1,33 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.workspace.ubuntu-workspace
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.docker-compose
+    vars:
+      name: kanissa-workspace
+      title: Workspace
+      description: Workspace conteneurisé , user HomeFolder
+      username: tuxounet
+      composeFile: |
+        services:
+          kanissa-workspace:
+            build: 
+              context: .
+              args:
+                USERNAME: tuxounet
+            container_name: kanissa-workspace
+            restart: unless-stopped
+            environment:
+              - TZ=UTC
+              - USERNAME=tuxounet
+            volumes:
+              - ./.data/workspace:/workspace
+            networks:
+              - anissa
+        networks:
+          anissa:
+            external: true

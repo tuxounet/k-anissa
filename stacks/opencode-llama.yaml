@@ -1,0 +1,25 @@
+version: v0
+
+stack:
+  description: "Stack de développement et test"
+
+  env:
+    ANISSA_NETWORK: anissa
+    TZ: Europe/Paris
+
+  layers:
+     
+    - layer: layers/6.workspace
+      plan: ubuntu-workspace
+      env:
+        # MCP_GITLAB: "true"
+        # MCP_GITLAB_URL: "https://gitlab.com"
+        # MCP_GITLAB_TOKEN: ""
+        # MCP_KUBERNETES: "true"
+        # MCP_TERRAFORM: "true"
+        # MCP_GCP: "true"
+        # MCP_GIT: "true"
+        # MCP_GIT_REPO: "/workspace"
+        # MCP_GITEA: "true"
+        # MCP_GITEA_URL: "http://localhost:3000"
+        # MCP_GITEA_TOKEN: ""

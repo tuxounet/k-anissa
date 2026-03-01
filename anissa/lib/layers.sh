@@ -50,8 +50,8 @@ layer_start() {
   case "$recipe_type" in
     compose)
       local output
-      log_debug "Exécution: docker compose up -d --remove-orphans dans ${plan_dir}"
-      output=$(docker_compose_run "$plan_dir" up -d --remove-orphans 2>&1) || {
+      log_debug "Exécution: docker compose up -d --build --remove-orphans dans ${plan_dir}"
+      output=$(docker_compose_run "$plan_dir" up -d --build --remove-orphans 2>&1) || {
         if [[ -n "$output" ]]; then
           echo -e "       ${DIM}${RED}${output}${RESET}" >&2
         fi
