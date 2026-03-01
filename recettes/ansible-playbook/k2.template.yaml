@@ -1,0 +1,37 @@
+k2:
+  metadata:
+    id: k.anissa.recettes.ansible-playbook
+    kind: "template"
+  body:
+    name: "ansible-playbook"
+    parameters:
+      name: "sample"
+      title: "Sample Ansible Playbook"
+      description: "Execute an Ansible playbook on up and optionally tear down on down"
+      accessUrl: ""
+      inventoryContent: |
+        [local]
+        localhost ansible_connection=local
+      playbookUp: |
+        ---
+        - name: "{{ .title }} — up"
+          hosts: all
+          gather_facts: false
+          tasks:
+            - name: Hello
+              ansible.builtin.debug:
+                msg: "up: {{ .name }}"
+      playbookDown: |
+        ---
+        - name: "{{ .title }} — down"
+          hosts: all
+          gather_facts: false
+          tasks:
+            - name: Hello
+              ansible.builtin.debug:
+                msg: "down: {{ .name }}"
+      extraVars: ""
+
+    scripts:
+      pre: []
+      nuke: []

@@ -1,0 +1,78 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.integrations.open-code
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.ansible-playbook
+    vars:
+      name: open-code
+      title: OpenCode
+      description: Installe ou vérifie l'installation de OpenCode (opencode.ai) dans le workspace via SSH
+      accessUrl: ""
+      inventoryContent: |
+        [workspace]
+        kanissa-ws ansible_host=localhost
+      playbookUp: |
+        ---
+        - name: "OpenCode — install"
+          hosts: workspace
+          gather_facts: false
+          become: false
+          vars:
+            opencode_bin: "$HOME/.opencode/bin/opencode"
+          tasks:
+            - name: Check if opencode is already installed
+              ansible.builtin.stat:
+                path: "{{ opencode_bin }}"
+              register: opencode_stat
+
+            - name: Install opencode via official script
+              ansible.builtin.shell: |
+                curl -fsSL https://opencode.ai/install | bash
+              when: not opencode_stat.stat.exists
+              register: opencode_install
+
+            - name: Show install output
+              ansible.builtin.debug:
+                var: opencode_install.stdout_lines
+              when: opencode_install is changed
+
+            - name: Verify opencode installation
+              ansible.builtin.command: "{{ opencode_bin }} version"
+              register: opencode_version
+              changed_when: false
+
+            - name: Display result
+              ansible.builtin.debug:
+                var: opencode_version.stdout_lines
+      playbookDown: |
+        ---
+        - name: "OpenCode — remove"
+          hosts: workspace
+          gather_facts: false
+          become: false
+          vars:
+            opencode_dir: "$HOME/.opencode"
+          tasks:
+            - name: Check if opencode directory exists
+              ansible.builtin.stat:
+                path: "{{ opencode_dir }}"
+              register: opencode_dir_stat
+
+            - name: Remove opencode directory
+              ansible.builtin.file:
+                path: "{{ opencode_dir }}"
+                state: absent
+              when: opencode_dir_stat.stat.exists
+
+            - name: Display removal status
+              ansible.builtin.debug:
+                msg: "{{ 'Removed ' ~ opencode_dir if opencode_dir_stat.stat.exists else 'opencode not found' }}"
+      extraVars: ""
+
+    scripts:
+      pre: []
+      nuke: []
