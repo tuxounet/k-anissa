@@ -10,7 +10,8 @@ k2:
     vars:
       name: ollama 
       title: ollama
-      description: Workspace conteneurisé — Claude Code AI Agent avec MCP, Tools et LLM Proxy 
+      description: Workspace conteneurisé — Claude Code AI Agent avec MCP, Tools et LLM Proxy
+      accessUrl: "Ollama API=http://localhost:${OLLAMA_PORT:-11434}"
       composeFile: |
           # Ollama avec registry (CPU) — Serveur d'inférence avec pré-chargement
           services:

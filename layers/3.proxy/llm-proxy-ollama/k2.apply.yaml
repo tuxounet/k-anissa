@@ -10,7 +10,8 @@ k2:
     vars:
       name: kanissa-litellm
       title: LLMProxy
-      description:  
+      description: LiteLLM Proxy — Routeur multi-modèle OpenAI-compatible
+      accessUrl: "LLM Proxy API=http://localhost:${LITELLM_PORT:-4000}"
       composeFile: |
           # LiteLLM Proxy — Routeur multi-modèle OpenAI-compatible
           services:

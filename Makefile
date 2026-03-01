@@ -28,6 +28,9 @@ logs:
 healthcheck:
 	@./anissa/bin/anissa $(_DEBUG_FLAG) healthcheck $(STACK)
 
+urls:
+	@./anissa/bin/anissa $(_DEBUG_FLAG) urls $(STACK)
+
 shell:
 	@./anissa/bin/anissa $(_DEBUG_FLAG) shell $(STACK)
 

@@ -274,10 +274,55 @@ cmd_status() {
 
     local status
     status=$(layer_status "$plan_dir")
-    status_lines+="${layer_ref}|${status}"$'\n'
+
+    # Récupérer l'URL d'accès résolue
+    local url_raw url_resolved
+    url_raw=$(layer_get_url "$plan_dir")
+    url_resolved=""
+    if [[ -n "$url_raw" ]]; then
+      url_resolved=$(eval echo "$url_raw" 2>/dev/null || echo "$url_raw")
+    fi
+
+    status_lines+="${layer_ref}|${status}|${url_resolved}"$'\n'
   done
 
   echo "$status_lines" | progress_status_table
+}
+
+# ── Commande : urls ───────────────────────────────────────────────────────────
+cmd_urls() {
+  local stack_name="$1"
+
+  _load_dotenv
+  config_load_stack "$stack_name"
+
+  local layer_count
+  layer_count=$(config_get_layer_count)
+
+  progress_banner "urls" "$stack_name" "$layer_count"
+
+  local all_links=""
+
+  for ((i = 0; i < layer_count; i++)); do
+    local layer_path plan plan_dir
+    layer_path=$(config_get_layer_path "$i")
+    plan=$(config_get_layer_plan "$i")
+    plan_dir=$(layer_resolve_path "$layer_path" "$plan")
+
+    config_export_layer_env "$i"
+
+    local links
+    links=$(layer_get_links "$plan_dir")
+    if [[ -n "$links" ]]; then
+      all_links+="${links}"$'\n'
+    fi
+  done
+
+  if [[ -n "$all_links" ]]; then
+    progress_links_table "$all_links"
+  else
+    log_warn "Aucune URL d'accès définie dans la stack '${stack_name}'"
+  fi
 }
 
 # ── Commande : logs ───────────────────────────────────────────────────────────
@@ -590,7 +635,10 @@ cmd_help() {
   echo -e "    ${CYAN}status${RESET} <stack>          Afficher le statut de chaque layer"
   echo -e "    ${CYAN}logs${RESET} <stack> [layer]    Afficher les logs"
   echo -e "    ${CYAN}healthcheck${RESET} <stack>     Vérifier la santé de chaque layer"
-  echo -e "    ${CYAN}shell${RESET} <stack> [layer]   Ouvrir un shell dans un container"  echo -e "    ${CYAN}run${RESET} <stack> <layer> [verb] Exécuter un verbe sur un plan"  echo -e "    ${CYAN}layers${RESET}                  Lister les layers disponibles"
+  echo -e "    ${CYAN}shell${RESET} <stack> [layer]   Ouvrir un shell dans un container"
+  echo -e "    ${CYAN}run${RESET} <stack> <layer> [verb] Exécuter un verbe sur un plan"
+  echo -e "    ${CYAN}urls${RESET} <stack>              Afficher les URLs d'accès de la stack"
+  echo -e "    ${CYAN}layers${RESET}                  Lister les layers disponibles"
   echo -e "    ${CYAN}stacks${RESET}                  Lister les stacks disponibles"
   echo -e "    ${CYAN}help${RESET}                    Afficher cette aide"
   echo ""
@@ -605,12 +653,16 @@ cmd_help() {
   echo -e "    ${DIM}anissa --debug up off-grid${RESET}"
   echo -e "    ${DIM}anissa status lab${RESET}"
   echo -e "    ${DIM}anissa logs off-grid llm-proxy${RESET}"
-  echo -e "    ${DIM}anissa shell off-grid custom-workspace-in-container${RESET}"  echo -e "    ${DIM}anissa run off-grid llm-proxy${RESET}          ${DIM}# lister les verbes${RESET}"
-  echo -e "    ${DIM}anissa run off-grid llm-proxy up${RESET}       ${DIM}# exécuter un verbe${RESET}"  echo ""
+  echo -e "    ${DIM}anissa shell off-grid custom-workspace-in-container${RESET}"
+  echo -e "    ${DIM}anissa run off-grid llm-proxy${RESET}          ${DIM}# lister les verbes${RESET}"
+  echo -e "    ${DIM}anissa run off-grid llm-proxy up${RESET}       ${DIM}# exécuter un verbe${RESET}"
+  echo -e "    ${DIM}anissa urls off-grid${RESET}                    ${DIM}# afficher les URLs${RESET}"
+  echo ""
 }
 
 # ── Point d'entrée ────────────────────────────────────────────────────────────
-main() {  # Parser le flag --debug avant la commande
+main() {
+  # Parser le flag --debug avant la commande
   export ANISSA_DEBUG="${ANISSA_DEBUG:-0}"
   while [[ "${1:-}" == "--debug" ]]; do
     export ANISSA_DEBUG=1
@@ -659,6 +711,10 @@ main() {  # Parser le flag --debug avant la commande
     run)
       [[ $# -lt 2 ]] && log_fatal "Usage : anissa run <stack> <layer> [verb] [args...]"
       cmd_run "$@"
+      ;;
+    urls)
+      [[ $# -lt 1 ]] && log_fatal "Usage : anissa urls <stack>"
+      cmd_urls "$@"
       ;;
     layers)
       cmd_layers

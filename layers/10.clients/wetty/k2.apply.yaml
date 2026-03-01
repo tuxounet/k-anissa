@@ -11,6 +11,7 @@ k2:
       name: kanissa-wetty
       title: Wetty SSH Web Client
       description: Terminal web (Wetty) connecté au workspace via SSH avec les clés workspace-keypair
+      accessUrl: "Wetty Terminal=http://localhost:${WETTY_PORT:-3000}"
       composeFile: |
         services:
           kanissa-wetty:

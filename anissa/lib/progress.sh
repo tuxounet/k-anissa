@@ -141,13 +141,13 @@ progress_links_table() {
 }
 
 # Affiche le tableau de statut coloré
-# Stdin = lignes "layer/plan|STATUS" (UP, DOWN, DEGRADED)
+# Stdin = lignes "layer/plan|STATUS" ou "layer/plan|STATUS|URL" 
 progress_status_table() {
   echo ""
-  echo -e "  ${BOLD}LAYER                                    STATUT${RESET}"
-  echo -e "  ──────────────────────────────────────── ───────────────"
+  echo -e "  ${BOLD}LAYER                                    STATUT     URL${RESET}"
+  echo -e "  ──────────────────────────────────────── ────────── ──────────────────────────"
 
-  while IFS='|' read -r layer_ref status; do
+  while IFS='|' read -r layer_ref status url; do
     # Ignorer les lignes vides
     [[ -z "$layer_ref" ]] && continue
 
@@ -156,10 +156,16 @@ progress_status_table() {
       UP)       status_display="${GREEN}✓ UP${RESET}" ;;
       DOWN)     status_display="${RED}✗ DOWN${RESET}" ;;
       DEGRADED) status_display="${YELLOW}⚠ DEGRADED${RESET}" ;;
+      SHELL)    status_display="${CYAN}◆ SHELL${RESET}" ;;
       *)        status_display="${DIM}? ${status}${RESET}" ;;
     esac
 
-    printf "  %-40s %b\n" "$layer_ref" "$status_display"
+    local url_display=""
+    if [[ -n "${url:-}" ]]; then
+      url_display="${DIM}${url}${RESET}"
+    fi
+
+    printf "  %-40s %b  %b\n" "$layer_ref" "$status_display" "$url_display"
   done
 
   echo ""

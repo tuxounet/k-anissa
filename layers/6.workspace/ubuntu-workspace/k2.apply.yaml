@@ -11,6 +11,7 @@ k2:
       name: kanissa-workspace
       title: Workspace
       description: Workspace conteneurisé , user HomeFolder
+      accessUrl: "Workspace SSH=ssh://localhost:${SSH_PORT:-2222}"
       username: tuxounet
       composeFile: |
         services:

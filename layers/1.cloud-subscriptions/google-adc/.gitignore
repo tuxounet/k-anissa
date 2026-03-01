@@ -1,4 +1,6 @@
 !k2.apply.yaml
 Makefile
+links.env
 verbs/down.sh
 verbs/up.sh
+verbs/url.sh

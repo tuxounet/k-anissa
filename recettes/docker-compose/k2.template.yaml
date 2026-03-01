@@ -8,6 +8,7 @@ k2:
       name: "sample"
       title: "Sample Component"
       description: "Name of the new app"
+      accessUrl: ""
       composeFile: |
           services:
             workspace:

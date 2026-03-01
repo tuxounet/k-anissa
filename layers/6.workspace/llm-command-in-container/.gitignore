@@ -1,7 +1,9 @@
 !k2.apply.yaml
 Makefile
 compose.yml
+links.env
 verbs/down.sh
 verbs/logs.sh
 verbs/shell.sh
 verbs/up.sh
+verbs/url.sh
