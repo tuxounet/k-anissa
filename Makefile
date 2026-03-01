@@ -59,6 +59,9 @@ unrender:
 claude:
 	@./anissa/bin/anissa $(_DEBUG_FLAG) run $(STACK) claude-code-in-container  claude 
 
+workspace:
+	@./anissa/bin/anissa $(_DEBUG_FLAG) run $(STACK) ubuntu-workspace  workspace 
+
 
 llm:
 	docker exec kanissa-workspace llm "tell me a very short joke"
