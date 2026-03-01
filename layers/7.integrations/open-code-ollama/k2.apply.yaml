@@ -1,0 +1,94 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.integrations.open-code-ollama
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.ansible-playbook
+    vars:
+      name: open-code-ollama
+      title: OpenCode Ollama
+      description: Configure OpenCode to use the local Ollama registry as LLM provider via SSH sur le workspace
+      accessUrl: ""
+      inventoryContent: |
+        [workspace]
+        kanissa-ws ansible_host=localhost
+      playbookUp: |
+        ---
+        - name: "OpenCode Ollama — configure"
+          hosts: workspace
+          gather_facts: false
+          become: false
+          vars:
+            ollama_base_url: "{{ lookup('env', 'OLLAMA_BASE_URL') | default('http://kanissa-ollama:' ~ (lookup('env', 'OLLAMA_PORT') | default('11434', true)) ~ '/v1', true) }}"
+            opencode_model: "{{ lookup('env', 'OPENCODE_OLLAMA_MODEL') | default('gemma3', true) }}"
+            opencode_config_dir: "$HOME/.config/opencode"
+            opencode_config_file: "$HOME/.config/opencode/opencode.json"
+          tasks:
+            - name: Create opencode config directory
+              ansible.builtin.file:
+                path: "{{ opencode_config_dir }}"
+                state: directory
+                mode: "0755"
+
+            - name: Write opencode.json configuration
+              ansible.builtin.copy:
+                dest: "{{ opencode_config_file }}"
+                mode: "0644"
+                content: |
+                  {
+                    "$schema": "https://opencode.ai/config.json",
+                    "provider": {
+                      "ollama": {
+                        "npm": "@ai-sdk/openai-compatible",
+                        "name": "Ollama",
+                        "options": {
+                          "baseURL": "{{ ollama_base_url }}"
+                        },
+                        "models": {
+                          "{{ opencode_model }}": {
+                            "name": "{{ opencode_model }}"
+                          }
+                        }
+                      }
+                    }
+                  }
+
+            - name: Display written configuration
+              ansible.builtin.command: cat {{ opencode_config_file }}
+              register: config_content
+              changed_when: false
+
+            - name: Show config
+              ansible.builtin.debug:
+                var: config_content.stdout_lines
+      playbookDown: |
+        ---
+        - name: "OpenCode Ollama — remove"
+          hosts: workspace
+          gather_facts: false
+          become: false
+          vars:
+            opencode_config_file: "$HOME/.config/opencode/opencode.json"
+          tasks:
+            - name: Check if opencode config exists
+              ansible.builtin.stat:
+                path: "{{ opencode_config_file }}"
+              register: config_stat
+
+            - name: Remove opencode ollama configuration
+              ansible.builtin.file:
+                path: "{{ opencode_config_file }}"
+                state: absent
+              when: config_stat.stat.exists
+
+            - name: Display removal status
+              ansible.builtin.debug:
+                msg: "{{ 'Removed ' ~ opencode_config_file if config_stat.stat.exists else 'No opencode config found — nothing to do.' }}"
+      extraVars: ""
+
+    scripts:
+      pre: []
+      nuke: []

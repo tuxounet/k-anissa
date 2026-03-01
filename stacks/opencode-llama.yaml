@@ -8,6 +8,10 @@ stack:
     TZ: Europe/Paris
 
   layers:
+    - layer: layers/2.locals-subscriptions
+      plan: ollama-registry
+    - layer: layers/2.locals-subscriptions
+      plan: ollama-registry-pull
     - layer: layers/6.workspace
       plan: workspace-keypair   
     - layer: layers/6.workspace
@@ -26,6 +30,8 @@ stack:
         # MCP_GITEA_TOKEN: ""
     - layer: layers/7.integrations
       plan: open-code
+    - layer: layers/7.integrations
+      plan: open-code-ollama
     - layer: layers/10.clients
       plan: wetty
       env:
