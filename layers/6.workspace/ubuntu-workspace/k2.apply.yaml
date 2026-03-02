@@ -20,11 +20,14 @@ k2:
               context: .
               args:
                 USERNAME: tuxounet
+                
             container_name: kanissa-workspace
             restart: unless-stopped
             environment:
               - TZ=UTC
               - USERNAME=tuxounet
+              - GIT_USER_NAME=${GIT_USER_NAME:-tuxounet}
+              - GIT_USER_EMAIL=${GIT_USER_EMAIL:-me@example.com}
             ports:
               - "${SSH_PORT:-2222}:2222"
             volumes:

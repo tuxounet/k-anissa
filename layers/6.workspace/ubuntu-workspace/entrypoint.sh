@@ -18,6 +18,16 @@ chown ${USERNAME}:${USERNAME} /var/run/tlog
 touch /var/run/utmp
 chmod 664 /var/run/utmp
 
+# ── Configuration Git globale ─────────────────────────────────────────────────
+if [[ -n "${GIT_USER_NAME:-}" ]]; then
+  su - "${USERNAME}" -c "git config --global user.name '${GIT_USER_NAME}'"
+  echo "[kanissa] git user.name = ${GIT_USER_NAME}"
+fi
+if [[ -n "${GIT_USER_EMAIL:-}" ]]; then
+  su - "${USERNAME}" -c "git config --global user.email '${GIT_USER_EMAIL}'"
+  echo "[kanissa] git user.email = ${GIT_USER_EMAIL}"
+fi
+
 # ── Démarrage du serveur SSH ──────────────────────────────────────────────────
 echo "[kanissa] Démarrage du serveur SSH sur le port 2222..."
 /usr/sbin/sshd
