@@ -16,6 +16,6 @@ ansible-playbook \
   -i "${PARENT_PATH}/inventory.ini" \
   ${EXTRA_VARS_FLAG} \
   --check \
-  "${PARENT_PATH}/playbook-up.yml"
+  "${PARENT_PATH}/playbooks/playbook-up.yml"
 
 echo "[{{ .name }}] ansible-playbook check done."

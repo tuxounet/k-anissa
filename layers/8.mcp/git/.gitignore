@@ -2,8 +2,8 @@
 Makefile
 inventory.ini
 links.env
-playbook-down.yml
-playbook-up.yml
+playbooks/playbook-down.yml
+playbooks/playbook-up.yml
 verbs/check.sh
 verbs/down.sh
 verbs/up.sh

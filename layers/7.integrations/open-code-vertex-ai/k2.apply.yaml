@@ -30,6 +30,7 @@ k2:
             sa_json_dest: "$HOME/.config/gcloud/sa.json"
             opencode_config_dir: "$HOME/.config/opencode"
             opencode_config_file: "$HOME/.config/opencode/opencode.json"
+            mcp_git_repo: "{{ lookup('env', 'MCP_GIT_REPO') | default('$HOME/repos', true) }}"
           tasks:
             - name: Check if opencode is already installed
               ansible.builtin.stat:
@@ -103,7 +104,14 @@ k2:
                         }
                       }
                     },
-                    "model": "vertex-ai/{{ opencode_model }}"
+                    "model": "vertex-ai/{{ opencode_model }}",
+                    "mcp": {
+                      "git": {
+                        "type": "local",
+                        "command": ["mcp-server-git", "--repository", "{{ mcp_git_repo }}"],
+                        "enabled": true
+                      }
+                    }
                   }
 
             - name: Display written configuration

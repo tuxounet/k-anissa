@@ -15,6 +15,6 @@ EXTRA_VARS_FLAG="--extra-vars '{{ .extraVars }}'"
 ansible-playbook \
   -i "${PARENT_PATH}/inventory.ini" \
   ${EXTRA_VARS_FLAG} \
-  "${PARENT_PATH}/playbook-up.yml"
+  "${PARENT_PATH}/playbooks/playbook-up.yml"
 
 echo "[{{ .name }}] ansible-playbook up done."
