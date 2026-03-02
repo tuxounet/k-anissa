@@ -14,7 +14,7 @@ k2:
       accessUrl: ""
       inventoryContent: |
         [workspace]
-        kanissa-ws ansible_host=localhost
+        kanissa-ws ansible_host=localhost ansible_port=2222
       playbookUp: |
         ---
         - name: "MCP Git — install"

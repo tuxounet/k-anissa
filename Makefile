@@ -1,7 +1,8 @@
 GO_PATH:=$(shell go env GOPATH)
 # STACK ?= claude-code-proxy-vertex
 # STACK ?= lab
-STACK ?= opencode-llama
+# STACK ?= opencode-llama
+STACK ?= opencode-vertex
 DEBUG ?=
 LAYER ?=
 VERB ?=

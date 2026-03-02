@@ -3,24 +3,14 @@ version: v0
 stack:
   description: |
     Stack de développement et test "tell me a joke"
-     - qwen2.5-coder:0.5b ~ 55s 
-     - qwen2.5-coder:1.5b ~ 2m 
-     - llama3.2:1b ~ 3m15
 
   env:
     ANISSA_NETWORK: anissa
     TZ: Europe/Paris
 
   layers:
-    - layer: layers/2.locals-subscriptions
-      plan: ollama-registry
-      env:
-        OLLAMA_DEBUG: "1"
-
-    - layer: layers/2.locals-subscriptions
-      plan: ollama-registry-pull
-      env:
-        OLLAMA_MODELS: qwen2.5-coder:0.5b
+    - layer: layers/1.cloud-subscriptions
+      plan: google-sa-json
 
     - layer: layers/6.workspace
       plan: workspace-keypair
@@ -29,9 +19,10 @@ stack:
       plan: ubuntu-workspace
 
     - layer: layers/7.integrations
-      plan: open-code-ollama
+      plan: open-code-vertex-ai
       env:
-        OPENCODE_OLLAMA_MODEL: qwen2.5-coder:0.5b
+        DEFAULT_MODEL: gemini-2.5-flash 
+        CLOUD_ML_REGION : europe-west9
 
     - layer: layers/8.mcp
       plan: git

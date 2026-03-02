@@ -1,6 +1,6 @@
 k2:
   metadata:
-    id: k.apps.anissa.layers.integrations.open-code-ollama
+    id: k.apps.anissa.layers.integrations.open-code-vertex-ai
     kind: template-apply
   body:
     template:
@@ -8,23 +8,26 @@ k2:
       params:
         id: k.anissa.recettes.ansible-playbook
     vars:
-      name: open-code-ollama
-      title: OpenCode Ollama
-      description: Installe OpenCode (opencode.ai) et le configure pour utiliser le registre Ollama local comme fournisseur LLM via SSH sur le workspace
+      name: open-code-vertex-ai
+      title: OpenCode Vertex AI
+      description: Installe OpenCode (opencode.ai) et le configure pour utiliser Vertex AI directement (Google SA JSON) comme fournisseur LLM via SSH sur le workspace
       accessUrl: ""
       inventoryContent: |
         [workspace]
         kanissa-ws ansible_host=localhost ansible_port=2222
       playbookUp: |
         ---
-        - name: "OpenCode Ollama — install & configure"
+        - name: "OpenCode Vertex AI — install & configure"
           hosts: workspace
           gather_facts: false
           become: false
           vars:
             opencode_bin: "$HOME/.opencode/bin/opencode"
-            ollama_base_url: "{{ lookup('env', 'OLLAMA_BASE_URL') | default('http://kanissa-ollama:' ~ (lookup('env', 'OLLAMA_PORT') | default('11434', true)) ~ '/v1', true) }}"
-            opencode_model: "{{ lookup('env', 'OPENCODE_OLLAMA_MODEL') | default('gemma3:270m', true) }}"
+            cloud_ml_region: "{{ lookup('env', 'CLOUD_ML_REGION') | default('europe-west1', true) }}"
+            vertex_project_id: "{{ lookup('env', 'ANTHROPIC_VERTEX_PROJECT_ID') }}"
+            opencode_model: "{{ lookup('env', 'DEFAULT_MODEL') | default('claude-sonnet-4-20250514', true) }}"
+            sa_json_source: "{{ lookup('env', 'KANISSA_DATA') }}/google-sa-json/sa.json"
+            sa_json_dest: "$HOME/.config/gcloud/sa.json"
             opencode_config_dir: "$HOME/.config/opencode"
             opencode_config_file: "$HOME/.config/opencode/opencode.json"
           tasks:
@@ -53,6 +56,25 @@ k2:
               ansible.builtin.debug:
                 var: opencode_version.stdout_lines
 
+            - name: Create gcloud config directory
+              ansible.builtin.file:
+                path: "$HOME/.config/gcloud"
+                state: directory
+                mode: "0755"
+
+            - name: Copy Google SA JSON credentials to workspace
+              ansible.builtin.copy:
+                src: "{{ sa_json_source }}"
+                dest: "{{ sa_json_dest }}"
+                mode: "0600"
+
+            - name: Set GOOGLE_APPLICATION_CREDENTIALS in shell profile
+              ansible.builtin.lineinfile:
+                path: "$HOME/.bashrc"
+                line: 'export GOOGLE_APPLICATION_CREDENTIALS="{{ sa_json_dest }}"'
+                regexp: '^export GOOGLE_APPLICATION_CREDENTIALS='
+                state: present
+
             - name: Create opencode config directory
               ansible.builtin.file:
                 path: "{{ opencode_config_dir }}"
@@ -67,23 +89,21 @@ k2:
                   {
                     "$schema": "https://opencode.ai/config.json",
                     "provider": {
-                      "ollama": {
-                        "npm": "@ai-sdk/openai-compatible",
-                        "name": "Ollama",
+                      "vertex-ai": {
+                        "npm": "@ai-sdk/google-vertex",
+                        "name": "Google Vertex AI",
                         "options": {
-                          "baseURL": "{{ ollama_base_url }}"
+                          "project": "{{ vertex_project_id }}",
+                          "location": "{{ cloud_ml_region }}"
                         },
                         "models": {
                           "{{ opencode_model }}": {
-                            "name": "{{ opencode_model }}",
-                            "options": {
-                              "num_ctx": 2048
-                            }
+                            "name": "{{ opencode_model }}"
                           }
                         }
                       }
                     },
-                    "model": "ollama/{{ opencode_model }}"
+                    "model": "vertex-ai/{{ opencode_model }}"
                   }
 
             - name: Display written configuration
@@ -96,24 +116,36 @@ k2:
                 var: config_content.stdout_lines
       playbookDown: |
         ---
-        - name: "OpenCode Ollama — remove"
+        - name: "OpenCode Vertex AI — remove"
           hosts: workspace
           gather_facts: false
           become: false
           vars:
             opencode_dir: "$HOME/.opencode"
             opencode_config_file: "$HOME/.config/opencode/opencode.json"
+            sa_json_dest: "$HOME/.config/gcloud/sa.json"
           tasks:
             - name: Check if opencode config exists
               ansible.builtin.stat:
                 path: "{{ opencode_config_file }}"
               register: config_stat
 
-            - name: Remove opencode ollama configuration
+            - name: Remove opencode vertex-ai configuration
               ansible.builtin.file:
                 path: "{{ opencode_config_file }}"
                 state: absent
               when: config_stat.stat.exists
+
+            - name: Remove SA JSON credentials from workspace
+              ansible.builtin.file:
+                path: "{{ sa_json_dest }}"
+                state: absent
+
+            - name: Remove GOOGLE_APPLICATION_CREDENTIALS from shell profile
+              ansible.builtin.lineinfile:
+                path: "$HOME/.bashrc"
+                regexp: '^export GOOGLE_APPLICATION_CREDENTIALS='
+                state: absent
 
             - name: Check if opencode directory exists
               ansible.builtin.stat:
@@ -128,7 +160,7 @@ k2:
 
             - name: Display removal status
               ansible.builtin.debug:
-                msg: "OpenCode and Ollama configuration removed."
+                msg: "OpenCode, Vertex AI configuration and SA credentials removed."
       extraVars: ""
 
     scripts:
