@@ -10,28 +10,22 @@ stack:
   layers:
     - layer: layers/2.locals-subscriptions
       plan: ollama-registry
+      env: 
+        OLLAMA_DEBUG: "1"
     - layer: layers/2.locals-subscriptions
       plan: ollama-registry-pull
+      env:
+        OLLAMA_MODELS: "qwen2.5-coder:1.5b"
     - layer: layers/6.workspace
-      plan: workspace-keypair   
+      plan: workspace-keypair
     - layer: layers/6.workspace
       plan: ubuntu-workspace
-      env:
-        # MCP_GITLAB: "true"
-        # MCP_GITLAB_URL: "https://gitlab.com"
-        # MCP_GITLAB_TOKEN: ""
-        # MCP_KUBERNETES: "true"
-        # MCP_TERRAFORM: "true"
-        # MCP_GCP: "true"
-        # MCP_GIT: "true"
-        # MCP_GIT_REPO: "/workspace"
-        # MCP_GITEA: "true"
-        # MCP_GITEA_URL: "http://localhost:3000"
-        # MCP_GITEA_TOKEN: ""
     - layer: layers/7.integrations
       plan: open-code
     - layer: layers/7.integrations
       plan: open-code-ollama
+      env:
+        OPENCODE_OLLAMA_MODEL: "qwen2.5-coder:1.5b"
     - layer: layers/8.mcp
       plan: git
     - layer: layers/10.clients

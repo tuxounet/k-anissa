@@ -20,6 +20,21 @@ k2:
         echo "[ollama-registry-pull] Ollama endpoint: $OLLAMA_HOST"
         echo "[ollama-registry-pull] Models to pull: $MODELS"
 
+        # ── wait for ollama to be ready ─────────────────────────────────────
+        MAX_WAIT=120
+        WAITED=0
+        echo "[ollama-registry-pull] Waiting for Ollama to be ready at $OLLAMA_HOST ..."
+        while ! curl -sf "$OLLAMA_HOST/" >/dev/null 2>&1; do
+          if [ "$WAITED" -ge "$MAX_WAIT" ]; then
+            echo "[ollama-registry-pull] ERROR: Ollama not ready after ${MAX_WAIT}s — aborting."
+            exit 1
+          fi
+          sleep 2
+          WAITED=$((WAITED + 2))
+          echo "[ollama-registry-pull] ... waiting (${WAITED}s/${MAX_WAIT}s)"
+        done
+        echo "[ollama-registry-pull] Ollama is ready (waited ${WAITED}s)."
+
         # ── helper: check if a model is already present ─────────────────────
         model_exists() {
           local model="$1"

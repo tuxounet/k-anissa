@@ -25,6 +25,16 @@ k2:
                 - "${KANISSA_DATA:-.data}/ollama:/root/.ollama"
               environment:
                 - OLLAMA_HOST=0.0.0.0
+                - OLLAMA_DEBUG=${OLLAMA_DEBUG:-1}
+                - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-true}
+                - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-2048}
+                - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-24h}
+              healthcheck:
+                test: ["CMD-SHELL", "curl -sf http://localhost:11434/ || exit 1"]
+                interval: 10s
+                timeout: 5s
+                retries: 12
+                start_period: 15s
               networks:
                 - anissa
           networks:

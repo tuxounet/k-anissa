@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
       openssh-server \
       wget \
       unzip \
+      tlog \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Utilisateur non-root (renomme ubuntu:1000 au lieu d'en créer un) ─────────
@@ -37,6 +38,10 @@ RUN mkdir -p /run/sshd /home/${USERNAME}/.ssh \
     && sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config \
     && sed -i 's/#Port 22/Port 2222/' /etc/ssh/sshd_config \
     && echo "AuthorizedKeysFile /etc/kanissa-ssh/id_ed25519.pub" >> /etc/ssh/sshd_config
+
+# ── tlog — enregistrement des sessions shell ─────────────────────────────────
+RUN mkdir -p /var/log/tlog \
+    && printf '{\n  "shell": "/bin/bash",\n  "notice": "",\n  "writer": "file",\n  "log": { "input": true, "output": true, "window": true },\n  "file": { "path": "/var/log/tlog/session.log" }\n}\n' > /etc/tlog/tlog-rec-session.conf
 
 EXPOSE 2222
 
@@ -70,6 +75,10 @@ __git_prompt() {
 PS1='\[\e[1;32m\]\u\[\e[0m\]@\[\e[1;34m\]\h\[\e[0m\]:\[\e[1;33m\]\w\[\e[0m\]$(__git_prompt)\[\e[0m\]\$ '
 BASHRC
 
+
+# ── tlog — login shell reste bash ; l'entrypoint configure ForceCommand ─────
+# (tlog-rec-session comme login shell bloque les commandes SSH non-interactives
+#  car il exige un PTY pour son I/O tap, ce qui casse Ansible.)
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

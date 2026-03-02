@@ -7,6 +7,7 @@ model_list:
     litellm_params:
       model: "ollama/gemma3"
       api_base: "http://kanissa-ollama:11434"
+      num_ctx: 2048
 
   
   # --- Cloud : autres (décommenter selon abonnements) ---
@@ -21,4 +22,4 @@ general_settings:
 
 litellm_settings:
   drop_params: true
-  set_verbose: false
+  set_verbose: true

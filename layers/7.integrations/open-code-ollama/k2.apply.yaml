@@ -23,7 +23,7 @@ k2:
           become: false
           vars:
             ollama_base_url: "{{ lookup('env', 'OLLAMA_BASE_URL') | default('http://kanissa-ollama:' ~ (lookup('env', 'OLLAMA_PORT') | default('11434', true)) ~ '/v1', true) }}"
-            opencode_model: "{{ lookup('env', 'OPENCODE_OLLAMA_MODEL') | default('gemma3', true) }}"
+            opencode_model: "{{ lookup('env', 'OPENCODE_OLLAMA_MODEL') | default('gemma3:270m', true) }}"
             opencode_config_dir: "$HOME/.config/opencode"
             opencode_config_file: "$HOME/.config/opencode/opencode.json"
           tasks:
@@ -49,11 +49,15 @@ k2:
                         },
                         "models": {
                           "{{ opencode_model }}": {
-                            "name": "{{ opencode_model }}"
+                            "name": "{{ opencode_model }}",
+                            "options": {
+                              "num_ctx": 2048
+                            }
                           }
                         }
                       }
-                    }
+                    },
+                    "model": "ollama/{{ opencode_model }}"
                   }
 
             - name: Display written configuration
