@@ -1,0 +1,92 @@
+k2:
+  metadata:
+    id: k.apps.anissa.layers.mcp.git
+    kind: template-apply
+  body:
+    template:
+      source: inventory
+      params:
+        id: k.anissa.recettes.ansible-playbook
+    vars:
+      name: mcp-git
+      title: MCP Git
+      description: Installe le serveur MCP Git (mcp-server-git) dans le workspace via SSH avec pipx
+      accessUrl: ""
+      inventoryContent: |
+        [workspace]
+        kanissa-ws ansible_host=localhost
+      playbookUp: |
+        ---
+        - name: "MCP Git — install"
+          hosts: workspace
+          gather_facts: false
+          become: false
+          vars:
+            mcp_git_package: "mcp-server-git"
+            pipx_bin: "$HOME/.local/bin/pipx"
+          tasks:
+            - name: Check if pipx is available
+              ansible.builtin.stat:
+                path: "{{ pipx_bin }}"
+              register: pipx_check
+
+            - name: Install pipx via pip
+              ansible.builtin.shell: pip3 install --break-system-packages pipx
+              when: not pipx_check.stat.exists
+
+            - name: Ensure ~/.local/bin is in PATH for this session
+              ansible.builtin.set_fact:
+                ansible_env_path: "$HOME/.local/bin:{{ ansible_env.PATH | default('/usr/local/bin:/usr/bin:/bin') }}"
+
+            - name: Check if mcp-server-git is already installed
+              ansible.builtin.shell: "{{ pipx_bin }} list 2>/dev/null | grep -q {{ mcp_git_package }}"
+              register: mcp_git_check
+              changed_when: false
+              failed_when: false
+
+            - name: Install mcp-server-git via pipx
+              ansible.builtin.shell: "{{ pipx_bin }} install {{ mcp_git_package }}"
+              when: mcp_git_check.rc != 0
+              register: mcp_git_install
+
+            - name: Show install output
+              ansible.builtin.debug:
+                var: mcp_git_install.stdout_lines
+              when: mcp_git_install is changed
+
+            - name: Verify installation
+              ansible.builtin.shell: "{{ pipx_bin }} list 2>/dev/null | grep {{ mcp_git_package }}"
+              register: mcp_git_version
+              changed_when: false
+
+            - name: Display result
+              ansible.builtin.debug:
+                var: mcp_git_version.stdout_lines
+      playbookDown: |
+        ---
+        - name: "MCP Git — remove"
+          hosts: workspace
+          gather_facts: false
+          become: false
+          vars:
+            mcp_git_package: "mcp-server-git"
+            pipx_bin: "$HOME/.local/bin/pipx"
+          tasks:
+            - name: Check if mcp-server-git is installed
+              ansible.builtin.shell: "{{ pipx_bin }} list 2>/dev/null | grep -q {{ mcp_git_package }}"
+              register: mcp_git_check
+              changed_when: false
+              failed_when: false
+
+            - name: Uninstall mcp-server-git
+              ansible.builtin.shell: "{{ pipx_bin }} uninstall {{ mcp_git_package }}"
+              when: mcp_git_check.rc == 0
+
+            - name: Display removal status
+              ansible.builtin.debug:
+                msg: "{{ 'Removed ' ~ mcp_git_package if mcp_git_check.rc == 0 else 'mcp-server-git not found — nothing to do.' }}"
+      extraVars: ""
+
+    scripts:
+      pre: []
+      nuke: []

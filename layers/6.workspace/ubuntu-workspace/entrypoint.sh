@@ -12,5 +12,6 @@ echo "[kanissa] Démarrage du serveur SSH sur le port 2222..."
 
 echo "[kanissa] Workspace conteneurisé prêt."
 
-# Maintenir le conteneur en vie
-exec sleep infinity
+# ── Suivre l'activité utilisateur dans les logs du conteneur ──────────────────
+touch /var/log/auth.log /var/log/wtmp
+exec tail -F /var/log/auth.log
