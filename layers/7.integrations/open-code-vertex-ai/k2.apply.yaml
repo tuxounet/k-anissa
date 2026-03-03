@@ -39,9 +39,12 @@ k2:
 
             - name: Install opencode via official script
               ansible.builtin.shell: |
-                curl -fsSL https://opencode.ai/install | bash
+                curl -fsSL --connect-timeout 30 --retry 5 --retry-delay 10 https://opencode.ai/install | bash
               when: not opencode_stat.stat.exists
               register: opencode_install
+              retries: 3
+              delay: 15
+              until: opencode_install.rc == 0
 
             - name: Show install output
               ansible.builtin.debug:

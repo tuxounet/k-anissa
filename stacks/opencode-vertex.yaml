@@ -3,7 +3,7 @@ version: v0
 stack:
   description: |
     Stack de développement et test "tell me a joke"
-
+    - gemini-2.5-flash ~ 1s
   env:
     ANISSA_NETWORK: anissa
     TZ: Europe/Paris
@@ -21,12 +21,12 @@ stack:
     - layer: layers/7.integrations
       plan: open-code-vertex-ai
       env:
-        DEFAULT_MODEL: gemini-2.5-flash 
-        CLOUD_ML_REGION : europe-west9
+        DEFAULT_MODEL: claude-opus-4-5@20251101
+        CLOUD_ML_REGION: europe-west1
 
     - layer: layers/8.mcp
       plan: git
-      
+
     - layer: layers/10.clients
       plan: wetty
       env:

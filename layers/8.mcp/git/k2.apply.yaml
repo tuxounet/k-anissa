@@ -31,8 +31,12 @@ k2:
               register: pipx_check
 
             - name: Install pipx via pip
-              ansible.builtin.shell: pip3 install --break-system-packages pipx
+              ansible.builtin.shell: pip3 install --break-system-packages --timeout 120 pipx
               when: not pipx_check.stat.exists
+              register: pipx_install
+              retries: 3
+              delay: 15
+              until: pipx_install.rc == 0
 
             - name: Ensure ~/.local/bin is in PATH for this session
               ansible.builtin.set_fact:
@@ -48,6 +52,9 @@ k2:
               ansible.builtin.shell: "{{ pipx_bin }} install {{ mcp_git_package }}"
               when: mcp_git_check.rc != 0
               register: mcp_git_install
+              retries: 3
+              delay: 15
+              until: mcp_git_install.rc == 0
 
             - name: Show install output
               ansible.builtin.debug:
